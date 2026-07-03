@@ -1,5 +1,6 @@
 import { useReducer, useEffect, useRef, useState } from "react";
 import { useMultiplayer, clearSession } from "./useMultiplayer";
+import { supabase } from "./supabaseClient";
 
 /* ═══════ PLAYER DATABASE — 200 players, official FC 26 2025-26 ratings ═══════ */
 const PLAYERS = [
