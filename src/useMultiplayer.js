@@ -1,5 +1,5 @@
 import { useState, useEffect, useReducer, useRef } from 'react';
-import Peer from 'peerjs';
+import { supabase } from './supabaseClient';
 
 export const getLocalSession = () => {
     try {
@@ -21,128 +21,109 @@ export const saveLocalSession = (data) => {
     } catch {}
 };
 
-export const getSavedHostState = () => {
-    try {
-        const saved = localStorage.getItem('fc26_host_state');
-        if (saved) return JSON.parse(saved);
-    } catch {}
-    return null;
-};
-
 export const clearSession = () => {
     localStorage.removeItem('fc26_session');
-    localStorage.removeItem('fc26_host_state');
 };
 
 export function useMultiplayer(reducer, initialState) {
     const [state, dispatchLocal] = useReducer(reducer, initialState);
     const [peerStatus, setPeerStatus] = useState("disconnected");
-    const peerRef = useRef(null);
-    const connsRef = useRef([]); 
-    const hostConnRef = useRef(null);
+    const channelRef = useRef(null);
     const session = getLocalSession();
+    const roomIdRef = useRef(session.roomId);
 
     const dispatch = (action) => {
         const actionWithUid = { ...action, _senderUid: session.uid };
-        if (peerStatus === "client" && hostConnRef.current) {
-            hostConnRef.current.send({ type: "ACTION", action: actionWithUid });
+        if (peerStatus === "client" && channelRef.current) {
+            channelRef.current.send({
+                type: 'broadcast',
+                event: 'ACTION',
+                payload: { action: actionWithUid }
+            }).catch(err => console.error("Broadcast err", err));
         } else {
             dispatchLocal(actionWithUid);
         }
     };
 
     useEffect(() => {
-        if (peerStatus === "host") {
-            const stateStr = JSON.stringify(state);
-            localStorage.setItem('fc26_host_state', stateStr);
-            if (connsRef.current.length > 0) {
-                connsRef.current.forEach(conn => {
-                    if (conn.open) conn.send({ type: "STATE", state: stateStr });
+        if (peerStatus === "host" && channelRef.current && roomIdRef.current) {
+            channelRef.current.send({
+                type: 'broadcast',
+                event: 'STATE',
+                payload: { state }
+            }).catch(err => console.error("Broadcast err", err));
+            
+            // Upsert state to Supabase
+            supabase.auth.getSession().then(({ data: { session: sbSession } }) => {
+                const admin_id = sbSession?.user?.id || null;
+                supabase.from('rooms').upsert({ id: roomIdRef.current, state, admin_id }).then(({ error }) => {
+                    if (error) console.error("Supabase upsert error:", error);
                 });
-            }
+            });
         }
     }, [state, peerStatus]);
 
-    const initHost = (roomId) => {
-        const peerId = `FC26-${roomId}`;
+    const initHost = async (roomId) => {
         setPeerStatus("connecting");
-        const peer = new Peer(peerId);
-        peerRef.current = peer;
-
+        roomIdRef.current = roomId;
         saveLocalSession({ roomId, isHost: true });
 
-        peer.on('open', () => {
-            setPeerStatus("host");
-        });
+        const channel = supabase.channel(`room_${roomId}`);
+        channelRef.current = channel;
 
-        peer.on('connection', (conn) => {
-            conn.on('open', () => {
-                connsRef.current.push(conn);
-                conn.send({ type: "STATE", state: JSON.stringify(state) });
-            });
-
-            conn.on('data', (data) => {
-                if (data && data.type === "ACTION") {
-                    if (data.action.type === "JOIN_ROOM") {
-                        conn.clientUid = data.action.uid;
+        channel
+            .on('broadcast', { event: 'ACTION' }, (payload) => {
+                dispatchLocal(payload.payload.action);
+            })
+            .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+                leftPresences.forEach(p => {
+                    if (p.uid && p.uid !== session.uid) {
+                        dispatchLocal({ type: "CLIENT_DISCONNECT", uid: p.uid, _senderUid: "HOST" });
                     }
-                    dispatchLocal(data.action);
+                });
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    setPeerStatus("host");
+                    await channel.track({ uid: session.uid, isHost: true });
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    alert("Multiplayer connection error. Check Supabase config.");
+                    setPeerStatus("disconnected");
                 }
             });
-
-            conn.on('close', () => {
-                connsRef.current = connsRef.current.filter(c => c.peer !== conn.peer);
-                if (conn.clientUid) {
-                    dispatchLocal({ type: "CLIENT_DISCONNECT", uid: conn.clientUid, _senderUid: "HOST" });
-                }
-            });
-        });
-
-        peer.on('error', (err) => {
-            console.error("PeerJS Error (Host):", err);
-            if (err.type === 'unavailable-id') {
-                alert("Room code already in use or reconnecting. Wait a minute and try again.");
-            } else {
-                alert("Multiplayer connection error. Check console.");
-            }
-            setPeerStatus("disconnected");
-        });
     };
 
-    const joinRoom = (roomId, name, teamName) => {
-        const hostPeerId = `FC26-${roomId}`;
+    const joinRoom = async (roomId, name, teamName) => {
         setPeerStatus("connecting");
-        const peer = new Peer();
-        peerRef.current = peer;
-
+        roomIdRef.current = roomId;
         saveLocalSession({ roomId, isHost: false, name, team: teamName });
 
-        peer.on('open', () => {
-            const conn = peer.connect(hostPeerId, { reliable: true });
-            hostConnRef.current = conn;
+        const { data } = await supabase.from('rooms').select('state').eq('id', roomId).single();
+        if (data && data.state) {
+            dispatchLocal({ type: "SYNC_STATE", state: data.state });
+        }
 
-            conn.on('open', () => {
-                setPeerStatus("client");
-                conn.send({ type: "ACTION", action: { type: "JOIN_ROOM", uid: session.uid, name, team: teamName } });
-            });
+        const channel = supabase.channel(`room_${roomId}`);
+        channelRef.current = channel;
 
-            conn.on('data', (data) => {
-                if (data && data.type === "STATE") {
-                    dispatchLocal({ type: "SYNC_STATE", state: JSON.parse(data.state) });
+        channel
+            .on('broadcast', { event: 'STATE' }, (payload) => {
+                dispatchLocal({ type: "SYNC_STATE", state: payload.payload.state });
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    setPeerStatus("client");
+                    await channel.track({ uid: session.uid, isHost: false });
+                    channel.send({
+                        type: 'broadcast',
+                        event: 'ACTION',
+                        payload: { action: { type: "JOIN_ROOM", uid: session.uid, name, team: teamName } }
+                    });
+                } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    alert("Failed to connect to room. Check connection.");
+                    setPeerStatus("disconnected");
                 }
             });
-
-            conn.on('close', () => {
-                setPeerStatus("disconnected");
-                alert("Host disconnected or auction ended.");
-            });
-        });
-
-        peer.on('error', (err) => {
-            console.error("PeerJS Error (Client):", err);
-            alert("Failed to connect to room. Make sure the code is correct and the Host is online.");
-            setPeerStatus("disconnected");
-        });
     };
 
     return { state, dispatch, peerStatus, initHost, joinRoom, session, dispatchLocal };

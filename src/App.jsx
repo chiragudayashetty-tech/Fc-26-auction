@@ -1,5 +1,5 @@
 import { useReducer, useEffect, useRef, useState } from "react";
-import { useMultiplayer, getSavedHostState, clearSession } from "./useMultiplayer";
+import { useMultiplayer, clearSession } from "./useMultiplayer";
 
 /* ═══════ PLAYER DATABASE — 200 players, official FC 26 2025-26 ratings ═══════ */
 const PLAYERS = [
@@ -648,11 +648,12 @@ export default function App() {
             {session.roomId && (
               <button onClick={() => {
                 if (session.isHost) {
-                  const saved = getSavedHostState();
-                  if (saved) {
-                    dispatchLocal({ type: "SYNC_STATE", state: saved });
-                    initHost(session.roomId);
-                  }
+                  supabase.from('rooms').select('state').eq('id', session.roomId).single().then(({ data }) => {
+                    if (data && data.state) {
+                      dispatchLocal({ type: "SYNC_STATE", state: data.state });
+                      initHost(session.roomId);
+                    }
+                  });
                 } else {
                   joinRoom(session.roomId, session.name, session.team);
                 }
@@ -661,6 +662,37 @@ export default function App() {
             <button onClick={() => { clearSession(); setRAction("create"); }} style={{ ...BTN("linear-gradient(135deg,#f59e0b,#d97706)"), padding: "18px 0", fontSize: 16, letterSpacing: 4, color: "#000", fontWeight: 800 }}>＋ CREATE ROOM</button>
             <button onClick={() => { clearSession(); setRAction("join"); }} style={{ ...BTN("rgba(255,255,255,.06)"), padding: "18px 0", fontSize: 16, letterSpacing: 4, border: "1px solid rgba(255,255,255,.12)" }}>⟶ JOIN ROOM</button>
             <div style={{ textAlign: "center", fontSize: 11, color: "#374151", marginTop: 10, fontFamily: F, letterSpacing: 1, lineHeight: 1.8 }}>Marquee → Forwards → Midfielders → Defenders → Keepers<br />Then 2 reauction rounds for unsold players</div>
+            
+            {adminUser && adminRooms.length > 0 && (
+              <div style={{ marginTop: 40, width: "100%" }}>
+                <div style={{ color: "#9ca3af", fontSize: 12, letterSpacing: 2, marginBottom: 10, textAlign: "center" }}>YOUR AUCTIONS</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {adminRooms.map(r => (
+                    <button key={r.id} onClick={() => {
+                       dispatchLocal({ type: "SYNC_STATE", state: r.state });
+                       initHost(r.id);
+                    }} style={{ ...BTN("rgba(255,255,255,.05)"), display: "flex", justifyContent: "space-between", padding: "12px 16px", border: "1px solid rgba(255,255,255,.1)" }}>
+                      <span>{r.state?.room?.name || `Room ${r.id}`}</span>
+                      <span style={{ color: "#3b82f6" }}>{r.id}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : rAction === "admin_login" ? (
+          <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ fontFamily: F, fontWeight: 800, fontSize: 22, color: "#fff", letterSpacing: 2 }}>ADMIN LOGIN</div>
+            <input value={myName} onChange={e => setMyName(e.target.value)} placeholder="Email" type="email" style={{ ...INP, fontFamily: F, fontSize: 14 }} />
+            <input value={myTeamN} onChange={e => setMyTeamN(e.target.value)} placeholder="Password" type="password" style={{ ...INP, fontFamily: F, fontSize: 14 }} />
+            <button onClick={async () => {
+              if (!myName.trim() || !myTeamN.trim()) { flash("Enter email and password"); return; }
+              const { error } = await supabase.auth.signInWithPassword({ email: myName, password: myTeamN });
+              if (error) setErr(error.message);
+              else { setErr(""); setRAction(null); }
+            }} style={{ ...BTN("linear-gradient(135deg,#f59e0b,#d97706)"), padding: "16px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>LOGIN →</button>
+            {err && <div style={{ color: "#f87171", fontSize: 12, textAlign: "center" }}>{err}</div>}
+            <button onClick={() => setRAction(null)} style={BACK}>← Back</button>
           </div>
         ) : rAction === "create" ? (
           <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -690,7 +722,7 @@ export default function App() {
               if (!joinCode || joinCode.length < 4) { flash("Enter the room code"); return; }
               if (!myName.trim() || !myTeamN.trim()) { flash("Enter name and team"); return; }
               // Wait for joinRoom to succeed; the SYNC_STATE will drop us into the right phase naturally
-              joinRoom(joinCode);
+              joinRoom(joinCode, myName, myTeamN);
             }} style={{ ...BTN("linear-gradient(135deg,#3b82f6,#1d4ed8)"), padding: "16px", fontSize: 15, letterSpacing: 3 }}>JOIN →</button>
             {err && <div style={{ color: "#f87171", fontSize: 12, textAlign: "center" }}>{err}</div>}
             <button onClick={() => setRAction(null)} style={BACK}>← Back</button>
@@ -1419,6 +1451,14 @@ export default function App() {
             })()}
           </div>
         )}
+
+        <div style={{ position: "absolute", bottom: 20, right: 20, opacity: 0.5 }}>
+          {adminUser ? (
+             <div style={{color:"#fff", fontSize: 12}}>Admin <button onClick={() => supabase.auth.signOut()} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",marginLeft:10}}>Logout</button></div>
+          ) : (
+             <button onClick={() => setRAction("admin_login")} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",fontSize: 12}}>Admin Login</button>
+          )}
+        </div>
       </div>
     </div>
   );
