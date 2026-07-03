@@ -517,6 +517,7 @@ export default function App() {
   const [myName, setMyName] = useState("");
   const [myTeamN, setMyTeamN] = useState("");
   const [role, setRole] = useState(null);
+  const [hasAutoAssigned, setHasAutoAssigned] = useState(false);
 
   const intervalRef = useRef(null);
   const selIntervalRef = useRef(null);
@@ -531,6 +532,17 @@ export default function App() {
   const isR2 = phase === "ra2_auction" || phase === "ra2_pick";
   const canBidR2 = isR2 && activeTeam && activeTeam.squad.length < 15;
   const isHost = session.isHost === true;
+
+  // Auto-assign role based on UID if in auction
+  useEffect(() => {
+    if (phase !== "lobby" && phase !== "config" && phase !== "setup" && !role && !hasAutoAssigned) {
+      const myTeamIdx = teams.findIndex(t => t.uid === session.uid);
+      if (myTeamIdx !== -1) {
+        setRole({ bidder: myTeamIdx });
+      }
+      setHasAutoAssigned(true);
+    }
+  }, [phase, role, teams, session.uid, hasAutoAssigned]);
 
   /* ── Wall-clock timer ── */
   useEffect(() => {
@@ -661,7 +673,7 @@ export default function App() {
               if (!roomName.trim() || !myName.trim() || !myTeamN.trim()) { flash("Fill all fields"); return; }
               const code = Math.random().toString(36).substring(2, 8).toUpperCase();
               dispatch({ type: "PATCH", patch: { room: { id: code, name: roomName } } });
-              dispatch({ type: "SET_SETUP", setup: [{ name: myName, team: myTeamN }] });
+              dispatch({ type: "SET_SETUP", setup: [{ uid: session.uid, name: myName, team: myTeamN, online: true }] });
               dispatch({ type: "PATCH", patch: { phase: "config" } });
               initHost(code);
             }} style={{ ...BTN("linear-gradient(135deg,#f59e0b,#d97706)"), padding: "16px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>CREATE →</button>
