@@ -9,6 +9,15 @@
   </head>
   <body style="margin:0;padding:0;background:#050810">
     <div id="root"></div>
+    <div id="err" style="color:red; background: black; padding: 20px; font-family: monospace;"></div>
+    <script>
+      window.addEventListener('error', e => {
+        document.getElementById('err').innerText += e.message + '\n' + e.filename + ':' + e.lineno + '\n\n';
+      });
+      window.addEventListener('unhandledrejection', e => {
+        document.getElementById('err').innerText += e.reason + '\n\n';
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

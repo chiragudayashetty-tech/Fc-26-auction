@@ -518,6 +518,27 @@ export default function App() {
   const [myTeamN, setMyTeamN] = useState("");
   const [role, setRole] = useState(null);
   const [hasAutoAssigned, setHasAutoAssigned] = useState(false);
+  
+  const [adminUser, setAdminUser] = useState(null);
+  const [adminRooms, setAdminRooms] = useState([]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: sbSession } }) => {
+      setAdminUser(sbSession?.user ?? null);
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, sbSession) => {
+      setAdminUser(sbSession?.user ?? null);
+    });
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (adminUser) {
+      supabase.from('rooms').select('id, state, updated_at').eq('admin_id', adminUser.id).order('updated_at', { ascending: false }).then(({ data }) => setAdminRooms(data || []));
+    }
+  }, [adminUser]);
 
   const intervalRef = useRef(null);
   const selIntervalRef = useRef(null);
