@@ -20,6 +20,8 @@ const audio = {
   sold: () => { playTone(400, 'sine', 0.1, 0.03); setTimeout(() => playTone(600, 'sine', 0.1, 0.03), 100); setTimeout(() => playTone(800, 'sine', 0.4, 0.03), 200); },
   skip: () => playTone(200, 'sawtooth', 0.3, 0.03)
 };
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { useReducer, useEffect, useRef, useState } from "react";
 import { useMultiplayer, clearSession } from "./useMultiplayer";
 import { supabase } from "./supabaseClient";
@@ -5197,6 +5199,8 @@ export default function App() {
     if (!current) return;
     if (current.status === "active") { prevStatusRef.current = "active"; return; }
     if (prevStatusRef.current !== "active") return;
+    if (current.status === "sold" && prevStatusRef.current !== "sold") { audio.sold(); }
+    if (current.status === "skipped" && prevStatusRef.current !== "skipped") { audio.skip(); }
     prevStatusRef.current = current.status;
     
     // Only the Host triggers auto-advance to prevent multiple dispatch issues
@@ -5760,7 +5764,43 @@ export default function App() {
             </div>
           );
         })}
-        <button onClick={() => dispatch({ type: "RESET" })} style={{ ...BTN("linear-gradient(135deg,#3b82f6,#7c3aed)"), padding: "14px", fontSize: 14, letterSpacing: 3 }}>NEW AUCTION</button>
+        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+          <button onClick={() => {
+            const doc = new jsPDF();
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(22);
+            doc.setTextColor(6, 182, 212);
+            doc.text("FC 26 Auction Results", 14, 20);
+            let y = 30;
+            teams.forEach(t => {
+              doc.setFontSize(16);
+              doc.setTextColor(30, 41, 59);
+              doc.text(t.team, 14, y);
+              doc.setFontSize(11);
+              doc.setTextColor(100, 116, 139);
+              doc.text(`Budget Remaining: ${t.budget}pt | Squad Size: ${t.squad.length}/20`, 14, y + 6);
+              y += 12;
+              const tableData = t.squad.map(p => [p.n, p.r.toString(), p.pos, p.club, `${p.price} pt`]);
+              doc.autoTable({
+                startY: y,
+                head: [['Player', 'OVR', 'Pos', 'Club', 'Price']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [6, 182, 212] },
+                margin: { left: 14, right: 14 }
+              });
+              y = doc.lastAutoTable.finalY + 15;
+              if (y > 270) { doc.addPage(); y = 20; }
+            });
+            doc.save("fc26-auction-results.pdf");
+          }} style={{ ...BTN("linear-gradient(135deg,#06b6d4,#0891b2)"), padding: "14px", fontSize: 14, letterSpacing: 2, flex: 1 }}>📄 EXPORT PDF</button>
+        </div>
+        <button onClick={() => { 
+          if(window.confirm('WARNING: If you leave to start a new auction, you will lose access to this room! Ensure you exported the PDF first. Proceed?')) { 
+             sessionStorage.clear(); 
+             window.location.reload(); 
+          } 
+        }} style={{ background: "none", border: "none", color: "#6b7280", fontFamily: F, fontSize: 11, letterSpacing: 1, textDecoration: "underline", cursor: "pointer", marginTop: 24, textAlign: "center", width: "100%" }}>Leave & Start New Auction</button>
       </div>
     </div>
   );
@@ -5950,7 +5990,7 @@ export default function App() {
                 {!isSold && (
                   <div style={{ background: "rgba(239,68,68,.05)", border: "1px solid rgba(239,68,68,.12)", borderRadius: 18, padding: "16px", marginTop: 10 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                      <div style={{ fontFamily: F, fontSize: 12, color: "#f87171", letterSpacing: 3, fontWeight: 700 }}>SKIP VOTES ({skipVotes.length}/{teams.length})</div>
+                      <div style={{ fontFamily: F, fontSize: 12, color: "#f87171", letterSpacing: 3, fontWeight: 700 }}>SKIP VOTES ({skipVotes.length}/{teams.length - (current?.bidderIdx != null ? 1 : 0)} REQUIRED)</div>
                       <div style={{ fontSize: 10, color: "#4b5563", letterSpacing: 1 }}>unanimous = skip</div>
                     </div>
                     
@@ -5960,7 +6000,7 @@ export default function App() {
                       if (myTeamIdx == null && !isAuctioneer) return null;
                       
                       const voted = myTeamIdx != null && skipVotes.includes(myTeamIdx);
-                      const canVote = myTeamIdx != null && !voted;
+                      const canVote = myTeamIdx != null && !voted && myTeamIdx !== current?.bidderIdx;
                       
                       return (
                         <button 
@@ -5975,7 +6015,7 @@ export default function App() {
                             cursor: canVote ? "pointer" : (voted ? "default" : "not-allowed"), letterSpacing: 4, boxShadow: voted ? "none" : "0 6px 20px rgba(239,68,68,.3)", transition: "all .2s" 
                           }}
                         >
-                          {voted ? "✓ VOTED TO SKIP" : "⏭️ VOTE TO SKIP"}
+                          {myTeamIdx === current?.bidderIdx ? "🏆 WINNING BID" : voted ? "✓ VOTED TO SKIP" : "⏭️ VOTE TO SKIP"}
                         </button>
                       );
                     })()}
@@ -6032,7 +6072,7 @@ export default function App() {
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <input className="ti" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/, ""))} onKeyDown={e => { if (e.key === "Enter") bidCustom(isR2); }} placeholder="Custom amount…" type="number" min="1" style={{ ...INP, flex: 1, fontFamily: F, fontSize: 20, textAlign: "center", padding: "13px", letterSpacing: 1 }} />
-                      <button className="bb" onClick={() => bidCustom(isR2)} style={{ padding: "13px 20px", borderRadius: 14, background: "linear-gradient(135deg,#06b6d4,#0891b2)", border: "none", color: "#000", fontFamily: F, fontWeight: 800, fontSize: 14, cursor: "pointer", letterSpacing: 2, flexShrink: 0 }}>BID</button>
+                      <button className="bb" onClick={() => { audio.bid(); bidCustom(isR2); }} style={{ padding: "13px 20px", borderRadius: 14, background: "linear-gradient(135deg,#06b6d4,#0891b2)", border: "none", color: "#000", fontFamily: F, fontWeight: 800, fontSize: 14, cursor: "pointer", letterSpacing: 2, flexShrink: 0 }}>BID</button>
                     </div>
                     {err && <div style={{ textAlign: "center", color: "#f87171", fontSize: 12, padding: "9px", background: "rgba(239,68,68,.08)", borderRadius: 10, border: "1px solid rgba(239,68,68,.18)", animation: "fadeIn .2s", fontFamily: F, letterSpacing: 1 }}>{err}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#4b5563", padding: "0 2px" }}>
