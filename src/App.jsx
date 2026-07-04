@@ -21,7 +21,7 @@ const audio = {
   skip: () => playTone(200, 'sawtooth', 0.3, 0.03)
 };
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { useReducer, useEffect, useRef, useState } from "react";
 import { useMultiplayer, clearSession } from "./useMultiplayer";
 import { supabase } from "./supabaseClient";
@@ -4848,7 +4848,7 @@ function analyzeSquad(sq) {
   const fwds = sq.filter(p => ["ST", "CF", "LW", "RW"].includes(p.pos)).length;
   const total = sq.length;
   const avgR = total ? Math.round(sq.reduce((s, p) => s + p.r, 0) / total) : 0;
-  const str = Math.min(99, Math.round((avgR - 70) * 3.5 + (total / 20) * 15 + (gks ? 6 : 0) + (defs >= 4 ? 10 : defs * 2.5) + (mids >= 3 ? 10 : mids * 3.3) + (fwds >= 2 ? 10 : fwds * 5)));
+  const str = Math.min(99, Math.round((avgR - 70) * 3.5 + (total / 25) * 15 + (gks ? 6 : 0) + (defs >= 4 ? 10 : defs * 2.5) + (mids >= 3 ? 10 : mids * 3.3) + (fwds >= 2 ? 10 : fwds * 5)));
   return { gks, defs, mids, fwds, total, avgR, str };
 }
 
@@ -4884,7 +4884,7 @@ function mkQueue(cfg) {
   // Sort descending by rating
   activePlayers.sort((a, b) => b.r - a.r);
   
-  const m1 = sh(activePlayers.slice(0, 20).map(p => ({...p, cat: "M1"})));
+  const m1 = sh(activePlayers.slice(0, 25).map(p => ({...p, cat: "M1"})));
   const m2 = sh(activePlayers.slice(20, 40).map(p => ({...p, cat: "M2"})));
   const rest = activePlayers.slice(40);
   
@@ -4954,7 +4954,7 @@ function reducer(s, a) {
       const team = s.teams[teamIdx];
       if (!team || amount > team.budget) return s;
       if (amount <= (cur.bid || 0) && cur.bidderIdx !== null) return s;
-      if (team.squad.length >= 20) return s;
+      if (team.squad.length >= 25) return s;
       return { ...s, skipVotes: [], current: { ...cur, bid: amount, bidderIdx: teamIdx, timerEnd: Date.now() + s.cfg.timer * 1000 } };
     }
 
@@ -4970,7 +4970,7 @@ function reducer(s, a) {
       return {
         ...s, teams, unsoldPool, skipVotes: [],
         current: { ...cur, status: "sold" },
-        history: [{ player, bidderIdx, price: bid, ts: Date.now() }, ...s.history].slice(0, 120)
+        history: [{ player, bidderIdx, price: bid, ts: Date.now() }, ...s.history].slice(0, 125)
       };
     }
 
@@ -4980,7 +4980,7 @@ function reducer(s, a) {
       const unsoldPool = [...s.unsoldPool, cur.player];
       return {
         ...s, unsoldPool, current: { ...cur, status: "skipped" }, skipVotes: [],
-        history: [{ player: cur.player, bidderIdx: null, price: 0, skipped: true, ts: Date.now() }, ...s.history].slice(0, 120)
+        history: [{ player: cur.player, bidderIdx: null, price: 0, skipped: true, ts: Date.now() }, ...s.history].slice(0, 125)
       };
     }
 
@@ -5001,13 +5001,13 @@ function reducer(s, a) {
           return {
             ...s, teams, skipVotes: [],
             current: { ...cur, status: "sold" },
-            history: [{ player, bidderIdx, price: bid, ts: Date.now() }, ...s.history].slice(0, 120)
+            history: [{ player, bidderIdx, price: bid, ts: Date.now() }, ...s.history].slice(0, 125)
           };
         } else {
           const unsoldPool = [...s.unsoldPool, cur.player];
           return {
             ...s, unsoldPool, current: { ...cur, status: "skipped" }, skipVotes: [],
-            history: [{ player: cur.player, bidderIdx: null, price: 0, skipped: true, ts: Date.now() }, ...s.history].slice(0, 120)
+            history: [{ player: cur.player, bidderIdx: null, price: 0, skipped: true, ts: Date.now() }, ...s.history].slice(0, 125)
           };
         }
       }
@@ -5056,13 +5056,41 @@ function reducer(s, a) {
 
     // After 30s: build reauction queue from selected players (≥1 vote = included)
     // ANY player voted by any team goes to reauction
+    case "VOTE_START_RA": {
+      if (s.startRaVotes && s.startRaVotes.includes(a.teamIdx)) return s;
+      const v = [...(s.startRaVotes || []), a.teamIdx];
+      if (v.length >= s.teams.length) {
+         if (s.phase === "ra1_pick") {
+            const reaucQueue = s.unsoldPool.filter(p => (s.selVotes[p.id] || []).length > 0);
+            const ra1Unsold = s.unsoldPool.filter(p => !(s.selVotes[p.id] || []).length);
+            if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {}, startRaVotes: [] };
+            const [first, ...rest] = reaucQueue;
+            return {
+              ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {}, startRaVotes: [],
+              raPhaseLabel: "REAUCTION — ROUND 1",
+              current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
+            };
+         } else {
+            const reaucQueue = s.ra1Unsold.filter(p => (s.selVotes[p.id] || []).length > 0);
+            if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {}, startRaVotes: [] };
+            const [first, ...rest] = reaucQueue;
+            return {
+              ...s, phase: "ra2_auction", queue: rest, selVotes: {}, startRaVotes: [],
+              raPhaseLabel: "REAUCTION — ROUND 2 (SMALL SQUADS)",
+              current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
+            };
+         }
+      }
+      return { ...s, startRaVotes: v };
+    }
+
     case "CONFIRM_RA1_SELECTION": {
       const reaucQueue = s.unsoldPool.filter(p => (s.selVotes[p.id] || []).length > 0);
       const ra1Unsold = s.unsoldPool.filter(p => !(s.selVotes[p.id] || []).length);
-      if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {} };
+      if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {}, startRaVotes: [] };
       const [first, ...rest] = reaucQueue;
       return {
-        ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {},
+        ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {}, startRaVotes: [],
         raPhaseLabel: "REAUCTION — ROUND 1",
         current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
       };
@@ -5070,17 +5098,17 @@ function reducer(s, a) {
 
     case "CONFIRM_RA2_SELECTION": {
       const reaucQueue = s.ra1Unsold.filter(p => (s.selVotes[p.id] || []).length > 0);
-      if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {} };
-      // Round 2: only teams with <15 players can bid
+      if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {}, startRaVotes: [] };
+      // Round 2: only teams with <25 players can bid
       const [first, ...rest] = reaucQueue;
       return {
-        ...s, phase: "ra2_auction", queue: rest, selVotes: {},
+        ...s, phase: "ra2_auction", queue: rest, selVotes: {}, startRaVotes: [],
         raPhaseLabel: "REAUCTION — ROUND 2 (SMALL SQUADS)",
         current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
       };
     }
 
-    // Round 2 bid — restricted to teams with <15 players
+    // Round 2 bid — restricted to teams with <25 players
     case "PLACE_BID_R2": {
       audio.bid();
       const cur = s.current;
@@ -5089,7 +5117,7 @@ function reducer(s, a) {
       const team = s.teams[teamIdx];
       if (!team || amount > team.budget) return s;
       if (amount <= (cur.bid || 0) && cur.bidderIdx !== null) return s;
-      if (team.squad.length >= 20) return s;
+      if (team.squad.length >= 25) return s;
       if (team.squad.length >= 15) return s; // round 2 restriction
       return { ...s, skipVotes: [], current: { ...cur, bid: amount, bidderIdx: teamIdx, timerEnd: Date.now() + s.cfg.timer * 1000 } };
     }
@@ -5103,7 +5131,7 @@ export default function App() {
   const { state: s, dispatch, peerStatus, initHost, joinRoom, session, dispatchLocal } = useMultiplayer(reducer, INIT);
   const [custom, setCustom] = useState("");
   const [err, setErr] = useState("");
-  const [secs, setSecs] = useState(20);
+  const [secs, setSecs] = useState(25);
   const [selSecs, setSelSecs] = useState(REAUCTION_SELECT_SECS);
   const [tab, setTab] = useState("bid");
   const [dashSub, setDashSub] = useState("overview");
@@ -5226,8 +5254,8 @@ export default function App() {
     const t = teams[ti];
     if (!t || amount > t.budget) { flash(`Only ${t?.budget || 0}pt left!`); return; }
     if (amount <= (current.bid || 0) && current.bidderIdx !== null) { flash(`Must beat ${current.bid}pt`); return; }
-    if (t.squad.length >= 20) { flash("Squad full!"); return; }
-    if (r2 && t.squad.length >= 15) { flash("Only squads under 15 can bid in Round 2!"); return; }
+    if (t.squad.length >= 25) { flash("Squad full!"); return; }
+    if (r2 && t.squad.length >= 15) { flash("Only squads under 25 can bid in Round 2!"); return; }
     dispatch({ type: r2 ? "PLACE_BID_R2" : "PLACE_BID", teamIdx: ti, amount });
   }
   function bidInc(i, r2) { placeBid((current?.bid || 0) + i, r2); }
@@ -5244,7 +5272,7 @@ export default function App() {
   const curSlots = formSlots[sqView] || {};
   const isReauction = phase === "ra1_auction";
   const isR2 = isReauction;
-  const canBidR2 = activeTeam && activeTeam.squad.length < 15;
+  const canBidR2 = activeTeam && activeTeam.squad.length < 25;
   const isPickPhase = phase === "ra1_pick";
   const pickPool = unsoldPool;
 
@@ -5260,7 +5288,7 @@ export default function App() {
         </div>
       )}
       <div style={{ position: "fixed", inset: 0, background: "radial-gradient(ellipse 100% 65% at 50% -5%,#091828,transparent),radial-gradient(ellipse 70% 50% at 95% 110%,#1a0a00,transparent)", pointerEvents: "none" }} />
-      <div style={{ position: "fixed", inset: 0, opacity: .02, backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M60 0H0v60' fill='none' stroke='%23fff' stroke-width='.3'/%3E%3C/svg%3E")`, pointerEvents: "none" }} />
+      <div style={{ position: "fixed", inset: 0, opacity: .02, backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2500/svg'%3E%3Cpath d='M60 0H0v60' fill='none' stroke='%23fff' stroke-width='.3'/%3E%3C/svg%3E")`, pointerEvents: "none" }} />
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "40px 20px", gap: 0 }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <div style={{ fontFamily: F, fontSize: 11, letterSpacing: 10, color: "#3b82f6", marginBottom: 8 }}>EA SPORTS™ FC 26</div>
@@ -5608,7 +5636,7 @@ export default function App() {
     const label = phase === "ra1_pick" ? "ROUND 1 REAUCTION — VOTE PLAYERS" : "ROUND 2 REAUCTION — SMALL SQUADS ONLY";
     const sub = phase === "ra1_pick"
       ? `${pickPool.length} unsold players — vote which ones to re-auction. Any player with at least 1 vote goes back up.`
-      : `${pickPool.length} still unsold. Only teams with under 15 players may bid in this round.`;
+      : `${pickPool.length} still unsold. Only teams with under 25 players may bid in this round.`;
     return (
       <div style={PG}><style>{FONTS + ANIM}</style>
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px 80px", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -5633,8 +5661,8 @@ export default function App() {
           {phase === "ra2_pick" && (
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {teams.map((t, i) => (
-                <div key={i} style={{ padding: "6px 12px", borderRadius: 99, background: t.squad.length < 15 ? "rgba(239,68,68,.12)" : "rgba(34,197,94,.08)", border: `1px solid ${t.squad.length < 15 ? "rgba(239,68,68,.35)" : "rgba(34,197,94,.25)"}`, fontFamily: F, fontSize: 11, color: t.squad.length < 15 ? "#f87171" : "#4ade80", letterSpacing: 1 }}>
-                  {t.team}: {t.squad.length}/15 {t.squad.length < 15 ? "✓ CAN BID" : ""}
+                <div key={i} style={{ padding: "6px 12px", borderRadius: 99, background: t.squad.length < 25 ? "rgba(239,68,68,.12)" : "rgba(34,197,94,.08)", border: `1px solid ${t.squad.length < 25 ? "rgba(239,68,68,.35)" : "rgba(34,197,94,.25)"}`, fontFamily: F, fontSize: 11, color: t.squad.length < 25 ? "#f87171" : "#4ade80", letterSpacing: 1 }}>
+                  {t.team}: {t.squad.length}/25 {t.squad.length < 25 ? "✓ CAN BID" : ""}
                 </div>
               ))}
             </div>
@@ -5671,10 +5699,16 @@ export default function App() {
           </div>
 
           {/* Manual confirm */}
-          <button onClick={() => dispatch({ type: "CONFIRM_RA1_SELECTION" })}
-            style={{ ...BTN("linear-gradient(135deg,#10b981,#047857)"), padding: "15px", fontSize: 15, letterSpacing: 3, marginTop: 8 }}>
-            START REAUCTION ({(pickPool.filter(p => (selVotes[p.id] || []).length > 0)).length} selected)
-          </button>
+          {(() => {
+            const myTi = bidderIdx ?? (noAuc ? activeTi : null);
+            const isReady = (startRaVotes || []).includes(myTi);
+            return (
+              <button disabled={isReady} onClick={() => dispatch({ type: "VOTE_START_RA", teamIdx: myTi })}
+                style={{ ...BTN(isReady ? "rgba(16,185,129,.2)" : "linear-gradient(135deg,#10b981,#047857)"), padding: "15px", fontSize: 15, letterSpacing: 3, marginTop: 8, cursor: isReady ? "default" : "pointer" }}>
+                {isReady ? `WAITING FOR OTHERS (${(startRaVotes || []).length}/${teams.length})` : `READY TO START (${(startRaVotes || []).length}/${teams.length})`}
+              </button>
+            );
+          })()}
         </div>
       </div>
     );
@@ -5745,7 +5779,7 @@ export default function App() {
             doc.setFont("helvetica", "bold");
             doc.setFontSize(22);
             doc.setTextColor(6, 182, 212);
-            doc.text("FC 26 Auction Results", 14, 20);
+            doc.text("FC 26 Auction Results", 14, 25);
             let y = 30;
             teams.forEach(t => {
               doc.setFontSize(16);
@@ -5753,10 +5787,10 @@ export default function App() {
               doc.text(t.team, 14, y);
               doc.setFontSize(11);
               doc.setTextColor(100, 116, 139);
-              doc.text(`Budget Remaining: ${t.budget}pt | Squad Size: ${t.squad.length}/20`, 14, y + 6);
+              doc.text(`Budget Remaining: ${t.budget}pt | Squad Size: ${t.squad.length}/25`, 14, y + 6);
               y += 12;
               const tableData = t.squad.map(p => [p.n, p.r.toString(), p.pos, p.club, `${p.price} pt`]);
-              doc.autoTable({
+              autoTable(doc, {
                 startY: y,
                 head: [['Player', 'OVR', 'Pos', 'Club', 'Price']],
                 body: tableData,
@@ -5852,7 +5886,7 @@ export default function App() {
               {isR2 && !canBidR2 && (bidderIdx != null || noAuc) && !isAuctioneer && (
                 <div style={{ padding: "14px 16px", background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 14, textAlign: "center" }}>
                   <div style={{ fontFamily: F, fontWeight: 700, fontSize: 16, color: "#f87171", letterSpacing: 1 }}>⛔ NOT ELIGIBLE FOR ROUND 2</div>
-                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>Your squad has {activeTeam?.squad?.length} players (need under 15 to bid)</div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>Your squad has {activeTeam?.squad?.length} players (need under 25 to bid)</div>
                 </div>
               )}
               {p && g && (<>
@@ -6021,11 +6055,11 @@ export default function App() {
                           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                             {current?.bidderIdx === i && <div style={{ width: 5, height: 5, borderRadius: 99, background: "#22c55e", boxShadow: "0 0 6px #22c55e", flexShrink: 0 }} />}
                             <span style={{ fontSize: 12, color: current?.bidderIdx === i ? "#fff" : "#4b5563", fontFamily: F }}>{t.team}</span>
-                            {isR2 && t.squad.length < 15 && <span style={{ fontSize: 9, color: "#4ade80", fontFamily: F }}>✓</span>}
+                            {isR2 && t.squad.length < 25 && <span style={{ fontSize: 9, color: "#4ade80", fontFamily: F }}>✓</span>}
                           </div>
                           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                             <span style={{ fontFamily: F, fontSize: 12, color: current?.bidderIdx === i ? "#06b6d4" : "#374151" }}>{t.budget}pt</span>
-                            <span style={{ fontSize: 10, color: "#374151" }}>{t.squad.length}/20</span>
+                            <span style={{ fontSize: 10, color: "#374151" }}>{t.squad.length}/25</span>
                           </div>
                         </div>
                       ))}
@@ -6039,7 +6073,7 @@ export default function App() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                     {isR2 && <div style={{ padding: "8px 12px", background: "rgba(34,197,94,.06)", border: "1px solid rgba(34,197,94,.2)", borderRadius: 10, fontSize: 11, color: "#4ade80", fontFamily: F, letterSpacing: 1, textAlign: "center" }}>✓ ELIGIBLE — {activeTeam?.squad?.length}/14 players</div>}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
-                      {[1, 2, 5].map(inc => { const nxt = (current?.bid || 0) + inc, can = nxt <= (activeTeam?.budget || 0) && (activeTeam?.squad?.length || 0) < 20; return (<button key={inc} className="bb" onClick={() => { audio.bid(); bidInc(inc, isR2); }} disabled={!can} style={{ padding: "12px 0", borderRadius: 10, background: can ? "linear-gradient(135deg,#3b82f6,#1d4ed8)" : "rgba(255,255,255,.04)", color: can ? "#fff" : "#2d3748", fontFamily: F, fontWeight: 700, fontSize: 16, border: "none", cursor: can ? "pointer" : "not-allowed", letterSpacing: 1 }}>+{inc}</button>); })}
+                      {[1, 2, 5].map(inc => { const nxt = (current?.bid || 0) + inc, can = nxt <= (activeTeam?.budget || 0) && (activeTeam?.squad?.length || 0) < 25; return (<button key={inc} className="bb" onClick={() => { audio.bid(); bidInc(inc, isR2); }} disabled={!can} style={{ padding: "12px 0", borderRadius: 10, background: can ? "linear-gradient(135deg,#3b82f6,#1d4ed8)" : "rgba(255,255,255,.04)", color: can ? "#fff" : "#2d3748", fontFamily: F, fontWeight: 700, fontSize: 16, border: "none", cursor: can ? "pointer" : "not-allowed", letterSpacing: 1 }}>+{inc}</button>); })}
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <input className="ti" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/, ""))} onKeyDown={e => { if (e.key === "Enter") bidCustom(isR2); }} placeholder="Custom amount…" type="number" min="1" style={{ ...INP, flex: 1, fontFamily: F, fontSize: 20, textAlign: "center", padding: "13px", letterSpacing: 1 }} />
@@ -6048,7 +6082,7 @@ export default function App() {
                     {err && <div style={{ textAlign: "center", color: "#f87171", fontSize: 12, padding: "9px", background: "rgba(239,68,68,.08)", borderRadius: 10, border: "1px solid rgba(239,68,68,.18)", animation: "fadeIn .2s", fontFamily: F, letterSpacing: 1 }}>{err}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#4b5563", padding: "0 2px" }}>
                       <span>{activeTeam?.team}: <span style={{ color: "#fff", fontFamily: F, fontSize: 15 }}>{activeTeam?.budget}</span>pt</span>
-                      <span style={{ color: (activeTeam?.squad?.length || 0) >= 20 ? "#ef4444" : "#22c55e" }}>{activeTeam?.squad?.length || 0}/20</span>
+                      <span style={{ color: (activeTeam?.squad?.length || 0) >= 25 ? "#ef4444" : "#22c55e" }}>{activeTeam?.squad?.length || 0}/25</span>
                     </div>
                   </div>
                 )}
@@ -6115,10 +6149,10 @@ export default function App() {
                             <span style={{ fontFamily: F, fontWeight: 800, fontSize: 16, color: "#fff" }}>{t.team}</span>
                             <div style={{ width: 6, height: 6, borderRadius: 99, background: t.online ? "#10b981" : "#4b5563", boxShadow: t.online ? "0 0 6px #10b981" : "none" }}></div>
                             <span style={{ fontSize: 10, color: "#4b5563", marginLeft: 2 }}>{t.name}</span>
-                            {isR2 && t.squad.length < 15 && <span style={{ fontSize: 9, color: "#4ade80", marginLeft: 6, fontFamily: F }}>✓ R2</span>}
+                            {isR2 && t.squad.length < 25 && <span style={{ fontSize: 9, color: "#4ade80", marginLeft: 6, fontFamily: F }}>✓ R2</span>}
                           </div>
                           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                            {[{ v: an.str, l: "OVR", c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#06b6d4" : "#ef4444" }, { v: t.budget, l: "PTS", c: "#06b6d4" }, { v: `${t.squad.length}/20`, l: "SQ", c: t.squad.length < 15 ? "#ef4444" : "#22c55e" }].map(x => (
+                            {[{ v: an.str, l: "OVR", c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#06b6d4" : "#ef4444" }, { v: t.budget, l: "PTS", c: "#06b6d4" }, { v: `${t.squad.length}/25`, l: "SQ", c: t.squad.length < 25 ? "#ef4444" : "#22c55e" }].map(x => (
                               <div key={x.l} style={{ textAlign: "center" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 20, color: x.c, lineHeight: 1 }}>{x.v}</div><div style={{ fontSize: 7, color: "#4b5563", letterSpacing: 1, marginTop: 2 }}>{x.l}</div></div>
                             ))}
                           </div>
@@ -6157,7 +6191,7 @@ export default function App() {
               )}
               {dashSub === "compare" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {[{ k: "budget", l: "Budget", max: cfg.pts, c: "#60a5fa", f: v => `${v}pt` }, { k: "str", l: "Strength", max: 99, c: "#06b6d4", f: v => v || 0 }, { k: "avgR", l: "Avg Rating", max: 91, c: "#a78bfa", f: v => v || "—" }, { k: "total", l: "Players", max: 20, c: "#34d399", f: v => `${v}/20` }, { k: "gks", l: "GKs", max: 3, c: "#06b6d4", f: v => v }, { k: "defs", l: "Defenders", max: 8, c: "#818cf8", f: v => v }, { k: "mids", l: "Midfielders", max: 10, c: "#34d399", f: v => v }, { k: "fwds", l: "Forwards", max: 8, c: "#f87171", f: v => v }].map(stat => {
+                  {[{ k: "budget", l: "Budget", max: cfg.pts, c: "#60a5fa", f: v => `${v}pt` }, { k: "str", l: "Strength", max: 99, c: "#06b6d4", f: v => v || 0 }, { k: "avgR", l: "Avg Rating", max: 91, c: "#a78bfa", f: v => v || "—" }, { k: "total", l: "Players", max: 20, c: "#34d399", f: v => `${v}/25` }, { k: "gks", l: "GKs", max: 3, c: "#06b6d4", f: v => v }, { k: "defs", l: "Defenders", max: 8, c: "#818cf8", f: v => v }, { k: "mids", l: "Midfielders", max: 10, c: "#34d399", f: v => v }, { k: "fwds", l: "Forwards", max: 8, c: "#f87171", f: v => v }].map(stat => {
                     const vals = teams.map(t => { if (stat.k === "budget") return { t, v: t.budget }; const an = analyzeSquad(t.squad); return { t, v: an[stat.k] || 0 }; });
                     return (
                       <div key={stat.k} style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 14, padding: "12px 14px" }}>
@@ -6213,7 +6247,7 @@ export default function App() {
               {teams.map((t, i) => (
                 <button key={i} onClick={() => dispatch({ type: "SET_SQ", idx: i })} style={{ padding: "8px 14px", background: sqView === i ? "rgba(6,182,212,.08)" : "none", border: sqView === i ? "1px solid rgba(6,182,212,.2)" : "1px solid transparent", borderRadius: "10px 10px 0 0", fontFamily: F, fontSize: 11, color: sqView === i ? "#06b6d4" : "#4b5563", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1, flexShrink: 0 }}>
                   {(bidderIdx === i || (noAuc && activeTi === i)) ? "👤 " : ""}{t.team}
-                  {isR2 && t.squad.length < 15 && <span style={{ color: "#4ade80", marginLeft: 4 }}>✓</span>}
+                  {isR2 && t.squad.length < 25 && <span style={{ color: "#4ade80", marginLeft: 4 }}>✓</span>}
                 </button>
               ))}
             </div>
@@ -6227,7 +6261,7 @@ export default function App() {
               return (
                 <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px 80px" }}>
                   <div style={{ display: "flex", gap: 7, marginBottom: 14 }}>
-                    {[{ l: "OVR", v: an.str, c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#06b6d4" : "#ef4444" }, { l: "AVG", v: an.avgR || "—", c: "#06b6d4" }, { l: "SQUAD", v: `${sq.length}/20`, c: sq.length < 15 ? "#ef4444" : "#22c55e" }, { l: "BUDGET", v: `${t.budget}pt`, c: "#a78bfa" }].map(({ l, v, c }) => (
+                    {[{ l: "OVR", v: an.str, c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#06b6d4" : "#ef4444" }, { l: "AVG", v: an.avgR || "—", c: "#06b6d4" }, { l: "SQUAD", v: `${sq.length}/25`, c: sq.length < 25 ? "#ef4444" : "#22c55e" }, { l: "BUDGET", v: `${t.budget}pt`, c: "#a78bfa" }].map(({ l, v, c }) => (
                       <div key={l} style={{ flex: 1, textAlign: "center", padding: "8px 4px", background: "rgba(255,255,255,.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,.06)" }}>
                         <div style={{ fontFamily: F, fontWeight: 800, fontSize: 17, color: c, lineHeight: 1 }}>{v}</div>
                         <div style={{ fontSize: 8, color: "#4b5563", letterSpacing: .5, marginTop: 3 }}>{l}</div>
