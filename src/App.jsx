@@ -670,12 +670,7 @@ export default function App() {
             {session.roomId && (
               <button onClick={() => {
                 if (session.isHost) {
-                  supabase.from('rooms').select('state').eq('id', session.roomId).single().then(({ data }) => {
-                    if (data && data.state) {
-                      dispatchLocal({ type: "SYNC_STATE", state: data.state });
-                      initHost(session.roomId);
-                    }
-                  });
+                  initHost(session.roomId);
                 } else {
                   joinRoom(session.roomId, session.name, session.team);
                 }
@@ -691,7 +686,6 @@ export default function App() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {adminRooms.map(r => (
                     <button key={r.id} onClick={() => {
-                       dispatchLocal({ type: "SYNC_STATE", state: r.state });
                        initHost(r.id);
                     }} style={{ ...BTN("rgba(255,255,255,.05)"), display: "flex", justifyContent: "space-between", padding: "12px 16px", border: "1px solid rgba(255,255,255,.1)" }}>
                       <span>{r.state?.room?.name || `Room ${r.id}`}</span>
@@ -768,14 +762,14 @@ export default function App() {
   );
 
   /* ════════════════════════════════════════════════════════
-     CONFIG & SETUP (CLIENT WAITING LOBBY)
+     CONFIG (CLIENT WAITING)
   ════════════════════════════════════════════════════════ */
-  if (!isHost && (phase === "config" || phase === "setup")) return (
+  if (!isHost && phase === "config") return (
     <div style={PG}><style>{FONTS + ANIM}</style>
       <div style={{ maxWidth: 500, margin: "0 auto", padding: "40px 16px", display: "flex", flexDirection: "column", gap: 18, textAlign: "center" }}>
         <div style={{ width: 40, height: 40, border: "4px solid rgba(245,158,11,.2)", borderTopColor: "#f59e0b", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 10px" }}></div>
         <div style={{ fontFamily: F, fontWeight: 800, fontSize: 24, letterSpacing: 2, color: "#fff" }}>WAITING FOR HOST</div>
-        <div style={{ fontSize: 13, color: "#6b7280" }}>The host is configuring the auction and setting up teams...</div>
+        <div style={{ fontSize: 13, color: "#6b7280" }}>The host is configuring the auction rules...</div>
         
         <div style={{ marginTop: 30, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: "16px" }}>
           <div style={{ fontFamily: F, fontSize: 11, color: "#9ca3af", letterSpacing: 3, marginBottom: 12 }}>PLAYERS IN LOBBY ({setup.length})</div>
@@ -846,35 +840,78 @@ export default function App() {
             <div key={l} style={{ textAlign: "center" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, color: "#fff" }}>{v}</div><div style={{ fontSize: 9, color: "#6b7280", letterSpacing: 2, marginTop: 2 }}>{l}</div></div>
           ))}
         </div>
-        <button onClick={() => dispatch({ type: "PATCH", patch: { phase: "setup" } })} style={{ ...BTN("linear-gradient(135deg,#f59e0b,#d97706)"), padding: "15px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>SET UP TEAMS →</button>
+        <button onClick={() => dispatch({ type: "PATCH", patch: { phase: "setup" } })} style={{ ...BTN("linear-gradient(135deg,#f59e0b,#d97706)"), padding: "15px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>OPEN WAITING LOBBY →</button>
       </div>
     </div>
   );
 
   /* ════════════════════════════════════════════════════════
-     SETUP
+     LOBBY WAIT / SETUP
   ════════════════════════════════════════════════════════ */
   if (phase === "setup") return (
     <div style={PG}><style>{FONTS + ANIM}</style>
-      <div style={{ maxWidth: 520, margin: "0 auto", padding: "24px 16px 60px", display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 8 }}>
-          <button onClick={() => dispatch({ type: "PATCH", patch: { phase: "config" } })} style={BACK}>← Back</button>
-          <div style={{ fontFamily: F, fontWeight: 800, fontSize: 24, letterSpacing: 2, color: "#fff" }}>TEAMS</div>
-          <div style={{ marginLeft: "auto", fontFamily: F, fontSize: 13, color: "#f59e0b" }}>{cfg.pts}pt · {cfg.num}p</div>
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "40px 16px 80px", display: "flex", flexDirection: "column", gap: 24 }}>
+        
+        {/* ROOM CODE DISPLAY */}
+        <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 20, padding: 28, textAlign: "center", position: "relative", overflow: "hidden" }}>
+           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 0%, rgba(245,158,11,0.12), transparent 70%)" }} />
+           <div style={{ position: "relative", zIndex: 1 }}>
+             <div style={{ fontFamily: F, color: "#f59e0b", letterSpacing: 6, fontSize: 11, marginBottom: 8, fontWeight: 700 }}>SHARE CODE WITH FRIENDS</div>
+             <div style={{ fontFamily: "'Courier New',monospace", fontSize: 52, fontWeight: 900, letterSpacing: 14, color: "#fff", marginBottom: 16 }}>{room?.id || session.roomId}</div>
+             <button onClick={() => {
+                navigator.clipboard?.writeText(room?.id || session.roomId);
+                flash("Room Code Copied!");
+             }} style={{ background: "rgba(245,158,11,.15)", border: "1px solid rgba(245,158,11,.3)", color: "#f59e0b", padding: "8px 24px", borderRadius: 99, fontFamily: F, fontSize: 13, cursor: "pointer", letterSpacing: 2, fontWeight: 700 }}>COPY CODE</button>
+           </div>
         </div>
-        {setup.map((t, i) => (
-          <div key={i} style={{ display: "flex", gap: 7, alignItems: "center", padding: "10px 12px", background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 13 }}>
-            <div style={{ position: "relative" }}>
-              <div style={{ width: 30, height: 30, borderRadius: 9, background: `linear-gradient(135deg,${TEAM_COLORS[i % 8][0]},${TEAM_COLORS[i % 8][1]})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F, fontSize: 13, fontWeight: 800, color: "#fff", flexShrink: 0 }}>{i + 1}</div>
-              <div style={{ position: "absolute", top: -2, right: -2, width: 8, height: 8, borderRadius: 99, background: t.online ? "#10b981" : "#4b5563", border: "2px solid #050810" }}></div>
+
+        {/* RULES */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {[[`${cfg.pts}pt`, "BUDGET"], [`${cfg.num}`, "PLAYERS"], [`${cfg.timer}s`, "TIMER"]].map(([v, l]) => (
+            <div key={l} style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 14, padding: "12px 4px", textAlign: "center" }}>
+               <div style={{ fontFamily: F, fontSize: 18, fontWeight: 800, color: "#fff" }}>{v}</div>
+               <div style={{ fontSize: 9, color: "#6b7280", letterSpacing: 2, marginTop: 4 }}>{l}</div>
             </div>
-            <input value={t.name} onChange={e => dispatch({ type: "SET_SETUP", setup: setup.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} placeholder="Player name" style={INP} />
-            <input value={t.team} onChange={e => dispatch({ type: "SET_SETUP", setup: setup.map((x, j) => j === i ? { ...x, team: e.target.value } : x) })} placeholder="Team name" style={INP} />
-            {setup.length > 1 && <button onClick={() => dispatch({ type: "SET_SETUP", setup: setup.filter((_, j) => j !== i) })} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 20, flexShrink: 0, lineHeight: 1, padding: "0 4px" }}>×</button>}
+          ))}
+        </div>
+
+        {/* JOINED TEAMS */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+             <div style={{ fontFamily: F, fontSize: 16, fontWeight: 800, letterSpacing: 2, color: "#fff" }}>JOINED TEAMS ({setup.length}/8)</div>
+             {session.isHost && setup.length < 8 && <button onClick={() => dispatch({ type: "SET_SETUP", setup: [...setup, { name: `Player ${setup.length + 1}`, team: `Team ${setup.length + 1}`, online: true }] })} style={{ background: "none", border: "1px solid rgba(255,255,255,.1)", color: "#9ca3af", borderRadius: 8, padding: "6px 10px", fontSize: 11, cursor: "pointer", fontFamily: F, letterSpacing: 1 }}>+ Add Offline</button>}
           </div>
-        ))}
-        {setup.length < 8 && <button onClick={() => dispatch({ type: "SET_SETUP", setup: [...setup, { name: `Player ${setup.length + 1}`, team: `Team ${setup.length + 1}` }] })} style={{ padding: "10px", borderRadius: 12, background: "transparent", border: "1px dashed rgba(255,255,255,.12)", color: "#6b7280", fontSize: 13, cursor: "pointer", fontFamily: F, letterSpacing: 1 }}>+ ADD TEAM ({setup.length}/8)</button>}
-        <button onClick={() => dispatch({ type: "START_AUCTION", setup, cfg })} style={{ ...BTN("linear-gradient(135deg,#10b981,#047857)"), padding: "16px", fontSize: 15, letterSpacing: 3, marginTop: 4 }}>⚽ KICK OFF AUCTION</button>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {setup.length === 0 && <div style={{ textAlign: "center", padding: 30, color: "#6b7280", fontSize: 13, border: "1px dashed rgba(255,255,255,.1)", borderRadius: 16 }}>Waiting for players to join...</div>}
+            {setup.map((t, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", padding: "14px 18px", borderRadius: 18 }}>
+                 <div style={{ width: 38, height: 38, borderRadius: 10, background: `linear-gradient(135deg,${TEAM_COLORS[i%8][0]},${TEAM_COLORS[i%8][1]})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F, fontWeight: 800, fontSize: 16, color: "#fff" }}>{i + 1}</div>
+                 <div style={{ flex: 1 }}>
+                   {session.isHost ? (
+                      <input value={t.team} onChange={e => dispatch({ type: "SET_SETUP", setup: setup.map((x, j) => j === i ? { ...x, team: e.target.value } : x) })} style={{ ...INP, background: "transparent", border: "none", padding: 0, fontSize: 16, fontWeight: 700, fontFamily: F }} />
+                   ) : (
+                      <div style={{ fontFamily: F, fontSize: 16, fontWeight: 700, color: "#fff" }}>{t.team}</div>
+                   )}
+                   {session.isHost ? (
+                      <input value={t.name} onChange={e => dispatch({ type: "SET_SETUP", setup: setup.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} style={{ ...INP, background: "transparent", border: "none", padding: 0, fontSize: 12, color: "#9ca3af", marginTop: 2, fontFamily: F }} />
+                   ) : (
+                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2, fontFamily: F }}>{t.name} {t.uid === session.uid ? "(You)" : ""}</div>
+                   )}
+                 </div>
+                 <div style={{ fontSize: 10, color: t.online ? "#10b981" : "#4b5563", fontFamily: F, letterSpacing: 2, fontWeight: 700 }}>{t.online ? "ONLINE" : "OFFLINE"}</div>
+                 {session.isHost && setup.length > 1 && <button onClick={() => dispatch({ type: "SET_SETUP", setup: setup.filter((_, j) => j !== i) })} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 24, padding: "0 4px" }}>×</button>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* START BUTTON */}
+        {session.isHost ? (
+          <button onClick={() => dispatch({ type: "START_AUCTION", setup, cfg })} style={{ ...BTN("linear-gradient(135deg,#10b981,#047857)"), padding: "20px", fontSize: 17, letterSpacing: 4, marginTop: 12 }}>⚽ START AUCTION</button>
+        ) : (
+          <div style={{ textAlign: "center", color: "#f59e0b", fontFamily: F, letterSpacing: 2, padding: "20px", background: "rgba(245,158,11,.05)", borderRadius: 16, border: "1px solid rgba(245,158,11,.15)", marginTop: 12 }}>WAITING FOR HOST TO START...</div>
+        )}
       </div>
     </div>
   );

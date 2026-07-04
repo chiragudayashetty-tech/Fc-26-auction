@@ -68,6 +68,12 @@ export function useMultiplayer(reducer, initialState) {
         roomIdRef.current = roomId;
         saveLocalSession({ roomId, isHost: true });
 
+        // Safely fetch latest state before allowing useEffect to overwrite
+        const { data } = await supabase.from('rooms').select('state').eq('id', roomId).single();
+        if (data && data.state) {
+            dispatchLocal({ type: "SYNC_STATE", state: data.state });
+        }
+
         const channel = supabase.channel(`room_${roomId}`);
         channelRef.current = channel;
 
@@ -84,8 +90,11 @@ export function useMultiplayer(reducer, initialState) {
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    setPeerStatus("host");
-                    await channel.track({ uid: session.uid, isHost: true });
+                    // Small delay to ensure any React state batched updates (like SYNC_STATE) finish rendering
+                    setTimeout(async () => {
+                        setPeerStatus("host");
+                        await channel.track({ uid: session.uid, isHost: true });
+                    }, 100);
                 } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                     alert("Multiplayer connection error. Check Supabase config.");
                     setPeerStatus("disconnected");
