@@ -696,7 +696,7 @@ export default function App() {
               </div>
             )}
             
-            <div style={{ marginTop: 40, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 20 }}>
+            <div style={{ marginTop: 40, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 20, display: "flex", flexDirection: "column", gap: 12 }}>
               {adminUser ? (
                 <div style={{ color: "#9ca3af", fontSize: 13, textAlign: "center" }}>
                   Logged in as Admin ({adminUser.email}) 
@@ -707,6 +707,14 @@ export default function App() {
                   🔑 Admin Login
                 </button>
               )}
+              
+              <button onClick={() => {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = window.location.pathname + '?nocache=' + Date.now();
+              }} style={{ width: "100%", background: "none", border: "none", color: "#6b7280", cursor: "pointer", padding: "8px", fontSize: 12, textDecoration: "underline" }}>
+                🧹 Clear App Cache & Reload
+              </button>
             </div>
           </div>
         ) : rAction === "admin_login" ? (
