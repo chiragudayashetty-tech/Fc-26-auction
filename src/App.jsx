@@ -5263,7 +5263,7 @@ export default function App() {
           <div style={{ fontFamily: F, fontWeight: 800, fontSize: "clamp(72px,22vw,130px)", lineHeight: .82, letterSpacing: -6, marginBottom: 16 }}>
             <span style={{ color: "#fff" }}>AUC</span><span style={{ color: "#06b6d4" }}>TION</span>
           </div>
-          <div style={{ fontFamily: F, fontSize: "clamp(11px,3vw,15px)", letterSpacing: 6, color: "rgba(255,255,255,.25)" }}>200 PLAYERS · OFFICIAL FC 26 RATINGS · 3 AUCTION ROUNDS</div>
+          <div style={{ fontFamily: F, fontSize: "clamp(11px,3vw,15px)", letterSpacing: 6, color: "rgba(255,255,255,.25)" }}>250 FOOTBALLERS · OFFICIAL FC 26 RATINGS · 2 AUCTION ROUNDS</div>
         </div>
         {!rAction ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%", maxWidth: 340 }}>
