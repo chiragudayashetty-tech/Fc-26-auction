@@ -698,6 +698,8 @@ export default function App() {
   const allRemaining = p ? [p, ...queue] : queue;
   const curSlots = formSlots[sqView] || {};
   const isReauction = phase === "ra1_auction";
+  const isR2 = isReauction;
+  const canBidR2 = activeTeam && activeTeam.squad.length < 15;
   const isPickPhase = phase === "ra1_pick";
   const pickPool = unsoldPool;
 
