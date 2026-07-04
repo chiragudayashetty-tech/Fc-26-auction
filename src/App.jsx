@@ -324,11 +324,15 @@ function reducer(s, a) {
     case "JOIN_ROOM": {
       const { uid, name, team } = a;
       if (s.phase === "lobby" || s.phase === "config" || s.phase === "setup") {
-        const existing = s.setup.find(t => t.uid === uid);
-        if (existing) return { ...s, setup: s.setup.map(t => t.uid === uid ? { ...t, name, team, online: true } : t) };
+        const existing = s.setup.find(t => t.uid === uid || (t.team.trim().toLowerCase() === team.trim().toLowerCase()));
+        if (existing) return { ...s, setup: s.setup.map(t => t.team === existing.team ? { ...t, uid, name, team, online: true } : t) };
         return { ...s, setup: [...s.setup, { uid, name, team, online: true }] };
       }
-      return { ...s, teams: s.teams.map(t => t.uid === uid ? { ...t, online: true } : t) };
+      const existingTeam = s.teams.find(t => t.uid === uid || (t.team.trim().toLowerCase() === team.trim().toLowerCase()));
+      if (existingTeam) {
+        return { ...s, teams: s.teams.map(t => t.team === existingTeam.team ? { ...t, uid, online: true } : t) };
+      }
+      return s;
     }
     case "CLIENT_DISCONNECT": {
       if (s.phase === "lobby" || s.phase === "config" || s.phase === "setup") {
@@ -557,14 +561,17 @@ export default function App() {
 
   // Auto-assign role based on UID if in auction
   useEffect(() => {
-    if (phase !== "lobby" && phase !== "config" && phase !== "setup" && !role && !hasAutoAssigned) {
-      const myTeamIdx = teams.findIndex(t => t.uid === session.uid);
-      if (myTeamIdx !== -1) {
-        setRole({ bidder: myTeamIdx });
+    if (phase !== "lobby" && phase !== "config" && phase !== "setup" && !role) {
+      if (cfg.needAuctioneer && session.isHost) {
+        setRole("auctioneer");
+      } else {
+        const myTeamIdx = teams.findIndex(t => t.uid === session.uid);
+        if (myTeamIdx !== -1) {
+          setRole({ bidder: myTeamIdx });
+        }
       }
-      setHasAutoAssigned(true);
     }
-  }, [phase, role, teams, session.uid, hasAutoAssigned]);
+  }, [phase, role, teams, session.uid, session.isHost, cfg.needAuctioneer]);
 
   /* ── Wall-clock timer ── */
   useEffect(() => {
