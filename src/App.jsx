@@ -4759,7 +4759,8 @@ const PLAYERS = [
 /* ═══════ CONSTANTS ═════════════════════════════════════════════════ */
 const PC = { ST: "#f87171", CF: "#f87171", LW: "#fb923c", RW: "#fb923c", LM: "#fb923c", RM: "#fb923c", CAM: "#fbbf24", CM: "#34d399", CDM: "#60a5fa", LB: "#a78bfa", RB: "#a78bfa", CB: "#818cf8", GK: "#f59e0b" };
 const CAT_META = {
-  M: { label: "MARQUEE", icon: "⭐", color: "#f59e0b", bg: "rgba(245,158,11,.1)" },
+  M1: { label: "MARQUEE 1", icon: "💎", color: "#fbbf24", bg: "rgba(251,191,36,.1)" },
+  M2: { label: "MARQUEE 2", icon: "⭐", color: "#f59e0b", bg: "rgba(245,158,11,.1)" },
   FWD: { label: "FORWARDS", icon: "⚡", color: "#f87171", bg: "rgba(248,113,113,.08)" },
   MID: { label: "MIDFIELDERS", icon: "⚙️", color: "#34d399", bg: "rgba(52,211,153,.08)" },
   DEF: { label: "DEFENDERS", icon: "🛡️", color: "#818cf8", bg: "rgba(129,140,248,.08)" },
@@ -4851,22 +4852,24 @@ const INIT = {
   raPhaseLabel: "",   // "ROUND 1 — UNSOLD REAUCTION" | "ROUND 2 — SMALL SQUADS"
 };
 
-function mkQueue(cfg) {
+function mkQueue(cfg, setupPool) {
   const sh = a => [...a].sort(() => Math.random() - 0.5);
-  // Default to all players if pool is not set
-  const poolIds = cfg.pool || PLAYERS.map(p => p.id);
+  const poolIds = setupPool || PLAYERS.map(p => p.id);
   const activePlayers = PLAYERS.filter(p => poolIds.includes(p.id));
   
-  // ORDER: Marquee → Forwards → Midfielders → Defenders → Goalkeepers
-  const marquee = sh(activePlayers.filter(p => p.cat === "M"));
-  const fwd = sh(activePlayers.filter(p => p.cat === "FWD"));
-  const mid = sh(activePlayers.filter(p => p.cat === "MID"));
-  const def = sh(activePlayers.filter(p => p.cat === "DEF"));
-  const gk = sh(activePlayers.filter(p => p.cat === "GK"));
+  // Sort descending by rating
+  activePlayers.sort((a, b) => b.r - a.r);
   
-  const seen = new Set();
-  return [...marquee, ...fwd, ...mid, ...def, ...gk]
-    .filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+  const m1 = sh(activePlayers.slice(0, 20).map(p => ({...p, cat: "M1"})));
+  const m2 = sh(activePlayers.slice(20, 40).map(p => ({...p, cat: "M2"})));
+  const rest = activePlayers.slice(40);
+  
+  const fwd = sh(rest.filter(p => p.cat === "FWD"));
+  const mid = sh(rest.filter(p => p.cat === "MID"));
+  const def = sh(rest.filter(p => p.cat === "DEF"));
+  const gk = sh(rest.filter(p => p.cat === "GK"));
+  
+  return [...m1, ...m2, ...fwd, ...mid, ...def, ...gk];
 }
 
 function reducer(s, a) {
@@ -4908,7 +4911,7 @@ function reducer(s, a) {
     case "RESET": return { ...INIT };
 
     case "START_AUCTION": {
-      const q = mkQueue(a.cfg);
+      const q = mkQueue(a.cfg, s.setupPool);
       const [first, ...rest] = q;
       const teams = a.setup.map(t => ({ uid: t.uid, online: t.online, name: t.name || "Player", team: t.team || "Team", budget: a.cfg.pts, squad: [] }));
       return {
@@ -4984,7 +4987,7 @@ function reducer(s, a) {
       }
       const [next, ...rest] = s.queue;
       const prevCat = s.current?.player?.cat;
-      const showBanner = prevCat && next.cat !== prevCat && prevCat !== "M" && next.cat !== "M";
+      const showBanner = prevCat && next.cat !== prevCat;
       if (showBanner) return { ...s, queue: rest, banner: next.cat, current: null, _nextPlayer: next };
       return {
         ...s, queue: rest, banner: null,
@@ -5806,58 +5809,90 @@ export default function App() {
                 </div>
               )}
               {p && g && (<>
+                
                 {/* FC26 CARD */}
-                <div key={p.id + (current?.uid || 0)} style={{ borderRadius: 24, overflow: "hidden", background: g.bg, border: `2px solid ${g.a}44`, boxShadow: `0 15px 70px ${g.a}22, inset 0 0 0 1px rgba(255,255,255,.05)`, animation: "cardIn .45s cubic-bezier(0.34,1.2,0.64,1)", position: "relative" }}>
-                  <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at 50% -10%,${g.a}30,transparent 70%)`, pointerEvents: "none" }} />
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${g.a}99,transparent)` }} />
+                <div key={p.id + (current?.uid || 0)} style={{ 
+                  width: "100%", maxWidth: 360, margin: "0 auto 16px", borderRadius: 20, 
+                  background: "linear-gradient(145deg, #0f172a 0%, #020617 100%)", 
+                  border: "1px solid rgba(56, 189, 248, 0.15)",
+                  boxShadow: "0 20px 60px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.05), inset 0 0 40px rgba(56,189,248,0.03)",
+                  padding: 24, position: "relative", overflow: "hidden", animation: "cardIn .4s cubic-bezier(0.34,1.2,0.64,1)"
+                }}>
+                  {/* Subtle top-left glow */}
+                  <div style={{ position: "absolute", top: -50, left: -50, width: 150, height: 150, background: "rgba(56, 189, 248, 0.1)", filter: "blur(40px)", borderRadius: "50%" }} />
                   {isReauction && <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", padding: "5px 16px", borderRadius: 99, background: "rgba(59,130,246,.25)", border: "1px solid rgba(59,130,246,.5)", fontFamily: F, fontSize: 10, color: "#93c5fd", letterSpacing: 3, zIndex: 10, backdropFilter: "blur(4px)" }}>🔄 REAUCTION</div>}
                   
-                  <div style={{ position: "relative", padding: "40px 24px 24px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                  {/* TOP HEADER */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, position: "relative", zIndex: 2 }}>
                     
-                    {/* Header: Rating & Position */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
-                      <div style={{ fontFamily: F, fontWeight: 900, fontSize: 56, color: "#fff", textShadow: `0 0 20px ${g.a}` }}>{p.r}</div>
-                      <div style={{ width: 2, height: 40, background: `${g.a}55` }} />
-                      <div style={{ fontFamily: F, fontSize: 24, color: g.a, letterSpacing: 4, fontWeight: 800 }}>{p.pos}</div>
-                    </div>
-                    
-                    {/* Name */}
-                    <div style={{ fontFamily: F, fontWeight: 900, fontSize: 32, color: "#fff", letterSpacing: 1.5, textShadow: "0 4px 15px rgba(0,0,0,0.8)", marginBottom: 8, lineHeight: 1.1 }}>{p.n.toUpperCase()}</div>
-                    
-                    {/* Club & Country */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-                      <div style={{ fontSize: 14, color: "#e4e4e7", fontWeight: 700, letterSpacing: 2 }}>{p.club.toUpperCase()}</div>
-                      <div style={{ width: 4, height: 4, borderRadius: 2, background: g.a }} />
-                      <div style={{ fontSize: 20, filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}>{p.nat}</div>
+                    {/* Rating & Position */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 80 }}>
+                      <div style={{ fontFamily: "Impact, sans-serif", fontSize: 64, color: "#fff", lineHeight: 0.8, letterSpacing: -2, fontStyle: "italic", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}>{p.r}</div>
+                      <div style={{ fontFamily: F, fontSize: 18, fontWeight: 900, color: "#38bdf8", letterSpacing: 2, fontStyle: "italic", marginTop: 8 }}>{p.pos}</div>
                     </div>
 
-                    <div style={{ width: "100%", height: 1, background: `linear-gradient(90deg,transparent,${g.a}44,transparent)`, marginBottom: 20 }} />
+                    {/* Name & Meta */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flex: 1, textAlign: "right", marginTop: p.s.length > 10 ? -4 : 0 }}>
+                      <div style={{ fontFamily: F, fontSize: 14, color: "#9ca3af", letterSpacing: 3, fontWeight: 600, textTransform: "uppercase", marginBottom: -4 }}>{p.n.split(' ')[0] || ""}</div>
+                      <div style={{ fontFamily: F, fontSize: p.s.length > 10 ? 28 : 36, color: "#fff", fontWeight: 900, letterSpacing: 1, textTransform: "uppercase", fontStyle: "italic", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>{p.s}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+                        <div style={{ fontFamily: F, fontSize: 12, color: "#6b7280", letterSpacing: 1, textTransform: "uppercase" }}>{p.club}</div>
+                        <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#38bdf8", boxShadow: "0 0 6px #38bdf8" }} />
+                        <div style={{ fontFamily: F, fontSize: 12, color: "#6b7280", letterSpacing: 1, textTransform: "uppercase" }}>{p.nat}</div>
+                      </div>
+                    </div>
+                  </div>
 
-                    {/* Stats Grid */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px 24px", width: "100%", padding: "0 10px" }}>
-                      {[["PAC", p.pac], ["SHO", p.sho], ["PAS", p.pas], ["DRI", p.dri], ["DEF", p.def], ["PHY", p.phy]].map(([k, v]) => (
-                        <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,0,0,0.2)", padding: "8px 12px", borderRadius: 12, border: `1px solid ${g.a}15` }}>
-                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", letterSpacing: 2, fontWeight: 700 }}>{k}</div>
-                          <div style={{ fontFamily: F, fontWeight: 900, fontSize: 18, color: v >= 85 ? "#4ade80" : v >= 70 ? "#fbbf24" : "#f87171", textShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>{v}</div>
+                  {/* Divider */}
+                  <div style={{ width: "100%", height: 1, background: "linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.2), transparent)", marginBottom: 24 }} />
+
+                  {/* STATS GRID */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24, position: "relative", zIndex: 2 }}>
+                    {[
+                      ["PAC", p.pac], ["SHO", p.sho], ["PAS", p.pas], 
+                      ["DRI", p.dri], ["DEF", p.def], ["PHY", p.phy]
+                    ].map(([lbl, val]) => {
+                      const col = val >= 90 ? '#4ade80' : val >= 80 ? '#38bdf8' : val >= 70 ? '#facc15' : '#f87171';
+                      return (
+                        <div key={lbl} style={{ 
+                          background: "rgba(15, 23, 42, 0.6)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.03)", 
+                          padding: "12px 0", display: "flex", flexDirection: "column", alignItems: "center",
+                          boxShadow: "inset 0 2px 10px rgba(0,0,0,0.5)"
+                        }}>
+                          <div style={{ fontFamily: F, fontSize: 11, color: "#6b7280", fontWeight: 700, letterSpacing: 1 }}>{lbl}</div>
+                          <div style={{ fontFamily: "Impact, sans-serif", fontSize: 32, color: col, fontStyle: "italic", lineHeight: 1.1, margin: "4px 0", textShadow: `0 0 15px ${col}44` }}>{val}</div>
+                          <div style={{ width: "60%", height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 99, marginTop: 4, overflow: "hidden" }}>
+                            <div style={{ width: `${val}%`, height: "100%", background: col, boxShadow: `0 0 8px ${col}`, borderRadius: 99 }} />
+                          </div>
                         </div>
-                      ))}
+                      )
+                    })}
+                  </div>
+
+                  {/* FOOTER: SKILLS & WF */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.03)", paddingTop: 16, position: "relative", zIndex: 2 }}>
+                    
+                    {/* Tiny hexagon icon decoration */}
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(30, 58, 138, 0.3)", border: "1px solid rgba(59, 130, 246, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 15px rgba(30, 58, 138, 0.5)" }}>
+                      <span style={{ fontSize: 14, color: "#60a5fa" }}>⚽</span>
                     </div>
 
-                    {/* Footer: Grade Label & Skills */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginTop: 24, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div style={{ padding: "6px 14px", borderRadius: 8, background: `linear-gradient(135deg, ${g.a}, ${g.lc})`, fontFamily: F, fontSize: 11, color: "#000", letterSpacing: 3, fontWeight: 900, boxShadow: `0 4px 15px ${g.a}55` }}>{g.lbl}</div>
-                      <div style={{ display: "flex", gap: 20 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ fontSize: 9, color: "#9ca3af", letterSpacing: 2, fontWeight: 700 }}>SM</div>
-                          <div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= p.sm ? "#fcd34d" : "rgba(255,255,255,0.1)", fontSize: 12, textShadow: i <= p.sm ? "0 0 10px rgba(252,211,77,0.6)" : "none" }}>★</span>)}</div>
+                    <div style={{ display: "flex", gap: 24 }}>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontFamily: F, fontSize: 9, color: "#6b7280", letterSpacing: 1.5, fontWeight: 700, marginBottom: 4 }}>SKILL MOVES</div>
+                        <div style={{ display: "flex", gap: 2, justifyContent: "center" }}>
+                          {[1,2,3,4,5].map(s => <span key={s} style={{ fontSize: 12, color: s <= p.sm ? "#4f46e5" : "#1f2937", textShadow: s <= p.sm ? "0 0 6px rgba(79, 70, 229, 0.6)" : "none" }}>★</span>)}
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ fontSize: 9, color: "#9ca3af", letterSpacing: 2, fontWeight: 700 }}>WF</div>
-                          <div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= p.wf ? "#93c5fd" : "rgba(255,255,255,0.1)", fontSize: 12, textShadow: i <= p.wf ? "0 0 10px rgba(147,197,253,0.6)" : "none" }}>★</span>)}</div>
+                      </div>
+                      <div style={{ width: 1, background: "rgba(255,255,255,0.05)" }} />
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontFamily: F, fontSize: 9, color: "#6b7280", letterSpacing: 1.5, fontWeight: 700, marginBottom: 4 }}>WEAK FOOT</div>
+                        <div style={{ display: "flex", gap: 2, justifyContent: "center" }}>
+                          {[1,2,3,4,5].map(s => <span key={s} style={{ fontSize: 12, color: s <= p.wf ? "#4f46e5" : "#1f2937", textShadow: s <= p.wf ? "0 0 6px rgba(79, 70, 229, 0.6)" : "none" }}>★</span>)}
                         </div>
                       </div>
                     </div>
-                    
+
                   </div>
                 </div>
 
