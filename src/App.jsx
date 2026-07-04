@@ -4834,7 +4834,7 @@ function analyzeSquad(sq) {
 const INIT = {
   phase: "lobby",
   room: null,
-  cfg: { pts: 100, pool: null, timer: 20, needAuctioneer: true },
+  cfg: { pts: 100, pool: null, timer: 20, needAuctioneer: false },
   setup: [],
   teams: [],
   queue: [],
@@ -4852,9 +4852,9 @@ const INIT = {
   raPhaseLabel: "",   // "ROUND 1 — UNSOLD REAUCTION" | "ROUND 2 — SMALL SQUADS"
 };
 
-function mkQueue(cfg, setupPool) {
+function mkQueue(cfg) {
   const sh = a => [...a].sort(() => Math.random() - 0.5);
-  const poolIds = setupPool || PLAYERS.map(p => p.id);
+  const poolIds = cfg.pool || PLAYERS.map(p => p.id);
   const activePlayers = PLAYERS.filter(p => poolIds.includes(p.id));
   
   // Sort descending by rating
@@ -4911,7 +4911,7 @@ function reducer(s, a) {
     case "RESET": return { ...INIT };
 
     case "START_AUCTION": {
-      const q = mkQueue(a.cfg, s.setupPool);
+      const q = mkQueue(a.cfg);
       const [first, ...rest] = q;
       const teams = a.setup.map(t => ({ uid: t.uid, online: t.online, name: t.name || "Player", team: t.team || "Team", budget: a.cfg.pts, squad: [] }));
       return {
@@ -5394,18 +5394,12 @@ export default function App() {
           </div>
           <div style={{ fontSize: 11, color: "#6b7280", padding: "8px 12px", background: "rgba(16,185,129,.05)", borderRadius: 10, border: "1px solid rgba(16,185,129,.15)" }}>⏰ Timer hits 0 → <b style={{ color: "#4ade80" }}>highest bidder wins automatically</b></div>
         </CBlock>
-        <CBlock title="🎙️ AUCTIONEER">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <button onClick={() => dispatch({ type: "SET_CFG", patch: { needAuctioneer: true } })} style={{ padding: "14px", borderRadius: 14, background: cfg.needAuctioneer ? "linear-gradient(135deg,#f59e0b,#d97706)" : "rgba(255,255,255,.05)", border: `1px solid ${cfg.needAuctioneer ? "#f59e0b44" : "rgba(255,255,255,.1)"}`, color: cfg.needAuctioneer ? "#000" : "#6b7280", fontFamily: F, fontWeight: 700, fontSize: 13, cursor: "pointer", textAlign: "center", letterSpacing: 1 }}>🎙️ YES<br /><span style={{ fontSize: 10, fontWeight: 400 }}>One person controls</span></button>
-            <button onClick={() => dispatch({ type: "SET_CFG", patch: { needAuctioneer: false } })} style={{ padding: "14px", borderRadius: 14, background: !cfg.needAuctioneer ? "linear-gradient(135deg,#3b82f6,#1d4ed8)" : "rgba(255,255,255,.05)", border: `1px solid ${!cfg.needAuctioneer ? "#3b82f644" : "rgba(255,255,255,.1)"}`, color: !cfg.needAuctioneer ? "#fff" : "#6b7280", fontFamily: F, fontWeight: 700, fontSize: 13, cursor: "pointer", textAlign: "center", letterSpacing: 1 }}>🤖 AUTO<br /><span style={{ fontSize: 10, fontWeight: 400 }}>Timer handles it</span></button>
-          </div>
-        </CBlock>
         <div style={{ fontSize: 12, color: "#6b7280", padding: "10px 14px", background: "rgba(59,130,246,.05)", borderRadius: 12, border: "1px solid rgba(59,130,246,.15)", lineHeight: 1.8 }}>
           📋 <b style={{ color: "#60a5fa" }}>Auction order:</b> Marquee → Forwards → Midfielders → Defenders → Goalkeepers<br />
           🔄 After main auction: <b style={{ color: "#f59e0b" }}>30s selection window</b> to vote unsold players for Reauction<br />
         </div>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "12px 16px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14 }}>
-          {[[`${cfg.pts}pt`, "PER TEAM"], [`${cfg.pool ? cfg.pool.length : PLAYERS.length}`, "PLAYERS"], [`${cfg.timer}s`, "TIMER"], [cfg.needAuctioneer ? "YES" : "AUTO", "AUCTIONEER"]].map(([v, l]) => (
+          {[[`${cfg.pts}pt`, "PER TEAM"], [`${cfg.pool ? cfg.pool.length : PLAYERS.length}`, "PLAYERS"], [`${cfg.timer}s`, "TIMER"], ["AUTO", "AUCTIONEER"]].map(([v, l]) => (
             <div key={l} style={{ textAlign: "center" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, color: "#fff" }}>{v}</div><div style={{ fontSize: 9, color: "#6b7280", letterSpacing: 2, marginTop: 2 }}>{l}</div></div>
           ))}
         </div>
@@ -5534,24 +5528,26 @@ export default function App() {
         </div>
 
         
-        {/* MANUAL PLAYER SELECTION */}
-        <div style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 16, padding: 16 }}>
-          <div style={{ fontFamily: F, fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
-            <span>PLAYER POOL: {setupPool ? setupPool.length : PLAYERS.length}/250</span>
-            {session.isHost && (
-              <button onClick={() => dispatch({ type: "TOGGLE_ALL_POOL" })} style={{ background: "none", border: "1px solid #6b7280", color: "#9ca3af", borderRadius: 6, cursor: "pointer", fontSize: 10, padding: "2px 8px" }}>TOGGLE ALL</button>
-            )}
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 300, overflowY: "auto", paddingRight: 8 }}>
-            {PLAYERS.map(pl => {
-               const isSel = !setupPool || setupPool.includes(pl.id);
-               return (
-                 <div key={pl.id} onClick={() => session.isHost && dispatch({ type: "TOGGLE_POOL_PLAYER", id: pl.id })}
-                   style={{ padding: "6px 10px", borderRadius: 8, background: isSel ? "rgba(34,197,94,.1)" : "rgba(255,255,255,.05)", border: `1px solid ${isSel ? "rgba(34,197,94,.4)" : "rgba(255,255,255,.1)"}`, color: isSel ? "#4ade80" : "#6b7280", fontSize: 11, cursor: session.isHost ? "pointer" : "default", opacity: isSel ? 1 : 0.4, transition: "all .2s" }}>
-                   {pl.n} <span style={{ opacity: .5 }}>{pl.r}</span>
-                 </div>
-               )
-            })}
+        {/* TIER PREVIEW */}
+        <div style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 16, padding: 20 }}>
+          <div style={{ fontFamily: F, fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 20, textAlign: "center", letterSpacing: 3 }}>AUCTION TIERS PREVIEW ({cfg.pool ? cfg.pool.length : PLAYERS.length} PLAYERS)</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center" }}>
+            {(() => {
+              const q = mkQueue(cfg);
+              const counts = { M1: 0, M2: 0, FWD: 0, MID: 0, DEF: 0, GK: 0 };
+              q.forEach(p => counts[p.cat] = (counts[p.cat] || 0) + 1);
+              return ['M1', 'M2', 'FWD', 'MID', 'DEF', 'GK'].map(k => {
+                const m = CAT_META[k];
+                if (!m || !counts[k]) return null;
+                return (
+                  <div key={k} style={{ background: "rgba(255,255,255,.02)", border: `1px solid ${m.color}33`, padding: "16px", borderRadius: 16, flex: "1 1 120px", textAlign: "center", boxShadow: `inset 0 0 20px ${m.color}11` }}>
+                    <div style={{ fontSize: 32, marginBottom: 12, filter: `drop-shadow(0 0 12px ${m.color}99)` }}>{m.icon}</div>
+                    <div style={{ fontFamily: F, fontSize: 11, color: m.color, letterSpacing: 2, fontWeight: 800 }}>{m.label}</div>
+                    <div style={{ fontFamily: F, fontSize: 28, color: "#fff", fontWeight: 900, marginTop: 4 }}>{counts[k]}</div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
 
