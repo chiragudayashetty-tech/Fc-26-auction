@@ -5119,7 +5119,7 @@ export default function App() {
 
   useEffect(() => {
     clearInterval(selIntervalRef.current);
-    if (phase !== "ra1_pick" && phase !== "ra2_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
+    if (s.phase !== "ra1_pick" && s.phase !== "ra2_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
     
     selIntervalRef.current = setInterval(() => {
       const end = s.selTimerEnd || (Date.now() + REAUCTION_SELECT_SECS * 1000);
@@ -5127,11 +5127,11 @@ export default function App() {
       setSelSecs(rem);
       if (rem <= 0) {
         clearInterval(selIntervalRef.current);
-        dispatch({ type: phase === "ra1_pick" ? "CONFIRM_RA1_SELECTION" : "CONFIRM_RA2_SELECTION" });
+        dispatch({ type: s.phase === "ra1_pick" ? "CONFIRM_RA1_SELECTION" : "CONFIRM_RA2_SELECTION" });
       }
     }, 250);
     return () => clearInterval(selIntervalRef.current);
-  }, [phase, s.selTimerEnd]);
+  }, [s.phase, s.selTimerEnd]);
 
   /* ── Auto-advance after sold/skipped ── */
   useEffect(() => {
