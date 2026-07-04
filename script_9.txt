@@ -1,0 +1,1 @@
+<script type="module" async="">import('https://assets.fut.gg/ts/assets/main-CgEK04cq.js')</script>

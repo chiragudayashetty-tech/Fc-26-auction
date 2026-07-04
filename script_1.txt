@@ -1,0 +1,1 @@
+<script src="https://beacon.fut.gg/beacon.js" async=""></script>

@@ -1,0 +1,1 @@
+<script src="https://beacon.routebench.com/v1.js" async="" data-site="fut.gg"></script>
