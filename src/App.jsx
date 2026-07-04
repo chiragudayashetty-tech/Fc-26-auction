@@ -1,3 +1,25 @@
+
+const playTone = (freq, type, duration, vol=0.03) => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch(e){}
+};
+const audio = {
+  tick: () => playTone(800, 'sine', 0.1, 0.02),
+  bid: () => { playTone(1200, 'square', 0.1, 0.03); setTimeout(() => playTone(1600, 'square', 0.15, 0.03), 100); },
+  sold: () => { playTone(400, 'sine', 0.1, 0.03); setTimeout(() => playTone(600, 'sine', 0.1, 0.03), 100); setTimeout(() => playTone(800, 'sine', 0.4, 0.03), 200); },
+  skip: () => playTone(200, 'sawtooth', 0.3, 0.03)
+};
 import { useReducer, useEffect, useRef, useState } from "react";
 import { useMultiplayer, clearSession } from "./useMultiplayer";
 import { supabase } from "./supabaseClient";
@@ -4757,10 +4779,10 @@ const PLAYERS = [
 ];
 
 /* ═══════ CONSTANTS ═════════════════════════════════════════════════ */
-const PC = { ST: "#f87171", CF: "#f87171", LW: "#fb923c", RW: "#fb923c", LM: "#fb923c", RM: "#fb923c", CAM: "#fbbf24", CM: "#34d399", CDM: "#60a5fa", LB: "#a78bfa", RB: "#a78bfa", CB: "#818cf8", GK: "#f59e0b" };
+const PC = { ST: "#f87171", CF: "#f87171", LW: "#fb923c", RW: "#fb923c", LM: "#fb923c", RM: "#fb923c", CAM: "#fbbf24", CM: "#34d399", CDM: "#60a5fa", LB: "#a78bfa", RB: "#a78bfa", CB: "#818cf8", GK: "#06b6d4" };
 const CAT_META = {
   M1: { label: "MARQUEE 1", icon: "💎", color: "#fbbf24", bg: "rgba(251,191,36,.1)" },
-  M2: { label: "MARQUEE 2", icon: "⭐", color: "#f59e0b", bg: "rgba(245,158,11,.1)" },
+  M2: { label: "MARQUEE 2", icon: "⭐", color: "#06b6d4", bg: "rgba(6,182,212,.1)" },
   FWD: { label: "FORWARDS", icon: "⚡", color: "#f87171", bg: "rgba(248,113,113,.08)" },
   MID: { label: "MIDFIELDERS", icon: "⚙️", color: "#34d399", bg: "rgba(52,211,153,.08)" },
   DEF: { label: "DEFENDERS", icon: "🛡️", color: "#818cf8", bg: "rgba(129,140,248,.08)" },
@@ -4774,14 +4796,14 @@ const FORMATIONS = {
   "3-5-2": [{ p: "GK", r: 0 }, { p: "CB", r: 1 }, { p: "CB", r: 1 }, { p: "CB", r: 1 }, { p: "LM", r: 2 }, { p: "CDM", r: 2 }, { p: "CM", r: 2 }, { p: "CM", r: 2 }, { p: "RM", r: 2 }, { p: "ST", r: 3 }, { p: "ST", r: 3 }],
   "5-3-2": [{ p: "GK", r: 0 }, { p: "LB", r: 1 }, { p: "CB", r: 1 }, { p: "CB", r: 1 }, { p: "CB", r: 1 }, { p: "RB", r: 1 }, { p: "CM", r: 2 }, { p: "CM", r: 2 }, { p: "CM", r: 2 }, { p: "ST", r: 3 }, { p: "ST", r: 3 }],
 };
-const TEAM_COLORS = [["#3b82f6", "#1d4ed8"], ["#8b5cf6", "#6d28d9"], ["#10b981", "#047857"], ["#ef4444", "#b91c1c"], ["#f59e0b", "#b45309"], ["#06b6d4", "#0e7490"], ["#ec4899", "#be185d"], ["#22c55e", "#15803d"]];
+const TEAM_COLORS = [["#3b82f6", "#1d4ed8"], ["#8b5cf6", "#6d28d9"], ["#10b981", "#047857"], ["#ef4444", "#b91c1c"], ["#06b6d4", "#b45309"], ["#06b6d4", "#0e7490"], ["#ec4899", "#be185d"], ["#22c55e", "#15803d"]];
 const F = "'Barlow Condensed',system-ui,sans-serif";
-const REAUCTION_SELECT_SECS = 30;
+const REAUCTION_SELECT_SECS = 60;
 
 function cardGrade(r, cat) {
-  if (cat === "M" || r >= 84) return { a: "#fbbf24", bg: "linear-gradient(155deg,#eab308,#854d0e)", lbl: "GOLD", lc: "#000" };
+  if (cat.startsWith("M") || r >= 84) return { a: "#fbbf24", bg: "linear-gradient(155deg,#eab308,#854d0e)", lbl: "GOLD", lc: "#000" };
   if (r >= 75) return { a: "#cbd5e1", bg: "linear-gradient(155deg,#94a3b8,#475569)", lbl: "SILVER", lc: "#000" };
-  return { a: "#d97706", bg: "linear-gradient(155deg,#b45309,#78350f)", lbl: "BRONZE", lc: "#fff" };
+  return { a: "#0891b2", bg: "linear-gradient(155deg,#b45309,#78350f)", lbl: "BRONZE", lc: "#fff" };
 }
 
 function Avatar({ player, size = 80 }) {
@@ -4909,6 +4931,7 @@ function reducer(s, a) {
     case "ASSIGN_SLOT": { const t = s.formSlots[s.sqView] || {}; return { ...s, formSlots: { ...s.formSlots, [s.sqView]: { ...t, [a.slot]: a.uid } } }; }
     case "CLEAR_SLOT": { const t = { ...(s.formSlots[s.sqView] || {}) }; delete t[a.slot]; return { ...s, formSlots: { ...s.formSlots, [s.sqView]: t } }; }
     case "RESET": return { ...INIT };
+    case "EXTEND_SEL_TIMER": return { ...s, selTimerEnd: (s.selTimerEnd || Date.now()) + 30000 };
 
     case "START_AUCTION": {
       const q = mkQueue(a.cfg);
@@ -4922,6 +4945,7 @@ function reducer(s, a) {
     }
 
     case "PLACE_BID": {
+      audio.bid();
       const cur = s.current;
       if (!cur || cur.status !== "active") return s;
       const { teamIdx, amount } = a;
@@ -4992,7 +5016,7 @@ function reducer(s, a) {
       if (!s.queue.length) {
         // Main auction done — go to reauction round 1 selection
         if (s.phase === "auction" && s.unsoldPool.length > 0) {
-          return { ...s, phase: "ra1_pick", selVotes: {} };
+          return { ...s, phase: "ra1_pick", selVotes: {}, selTimerEnd: Date.now() + 60000 };
         }
         // End of reauction round 1
         if (s.phase === "ra1_auction") {
@@ -5056,6 +5080,7 @@ function reducer(s, a) {
 
     // Round 2 bid — restricted to teams with <15 players
     case "PLACE_BID_R2": {
+      audio.bid();
       const cur = s.current;
       if (!cur || cur.status !== "active") return s;
       const { teamIdx, amount } = a;
@@ -5093,79 +5118,20 @@ export default function App() {
   const [adminRooms, setAdminRooms] = useState([]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: sbSession } }) => {
-      setAdminUser(sbSession?.user ?? null);
-    });
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, sbSession) => {
-      setAdminUser(sbSession?.user ?? null);
-    });
-    return () => {
-      authListener?.subscription?.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (adminUser) {
-      supabase.from('rooms').select('id, state, updated_at').eq('admin_id', adminUser.id).order('updated_at', { ascending: false }).then(({ data }) => setAdminRooms(data || []));
-    }
-  }, [adminUser]);
-
-  const intervalRef = useRef(null);
-  const selIntervalRef = useRef(null);
-  const prevStatusRef = useRef(null);
-
-  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formation, formSlots, sqView, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool } = s;
-  const isAuctioneer = role === "auctioneer";
-  const bidderIdx = role && role !== "auctioneer" ? role.bidder : null;
-  const noAuc = !cfg.needAuctioneer;
-  const activeTi = bidderIdx ?? 0;
-  const activeTeam = teams[noAuc ? activeTi : bidderIdx ?? 0];
-
-  const isHost = session.isHost === true;
-
-  // Auto-assign role based on UID if in auction
-  useEffect(() => {
-    if (phase !== "lobby" && phase !== "config" && phase !== "setup" && !role) {
-      if (cfg.needAuctioneer && session.isHost) {
-        setRole("auctioneer");
-      } else {
-        const myTeamIdx = teams.findIndex(t => t.uid === session.uid);
-        if (myTeamIdx !== -1) {
-          setRole({ bidder: myTeamIdx });
-        }
-      }
-    }
-  }, [phase, role, teams, session.uid, session.isHost, cfg.needAuctioneer]);
-
-  /* ── Wall-clock timer ── */
-  useEffect(() => {
-    clearInterval(intervalRef.current);
-    if (!current || current.status !== "active") { setSecs(0); return; }
-    const tick = () => {
-      const rem = Math.max(0, Math.ceil((current.timerEnd - Date.now()) / 1000));
-      setSecs(rem);
-      if (rem <= 0) { clearInterval(intervalRef.current); dispatch({ type: "SELL" }); }
-    };
-    tick(); intervalRef.current = setInterval(tick, 250);
-    return () => clearInterval(intervalRef.current);
-  }, [current?.uid, current?.timerEnd, current?.status]);
-
-  /* ── Selection phase countdown ── */
-  useEffect(() => {
     clearInterval(selIntervalRef.current);
-    if (phase !== "ra1_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
-    setSelSecs(REAUCTION_SELECT_SECS);
-    const end = Date.now() + REAUCTION_SELECT_SECS * 1000;
+    if (phase !== "ra1_pick" && phase !== "ra2_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
+    
     selIntervalRef.current = setInterval(() => {
+      const end = s.selTimerEnd || (Date.now() + REAUCTION_SELECT_SECS * 1000);
       const rem = Math.max(0, Math.ceil((end - Date.now()) / 1000));
       setSelSecs(rem);
       if (rem <= 0) {
         clearInterval(selIntervalRef.current);
-        dispatch({ type: "CONFIRM_RA1_SELECTION" });
+        dispatch({ type: phase === "ra1_pick" ? "CONFIRM_RA1_SELECTION" : "CONFIRM_RA2_SELECTION" });
       }
     }, 250);
     return () => clearInterval(selIntervalRef.current);
-  }, [phase]);
+  }, [phase, s.selTimerEnd]);
 
   /* ── Auto-advance after sold/skipped ── */
   useEffect(() => {
@@ -5226,8 +5192,8 @@ export default function App() {
     <div style={PG}><style>{FONTS + ANIM}</style>
       {peerStatus === "connecting" && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(5,8,16,0.9)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
-          <div style={{ width: 40, height: 40, border: "4px solid rgba(245,158,11,.2)", borderTopColor: "#f59e0b", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
-          <div style={{ fontFamily: F, color: "#f59e0b", letterSpacing: 3, fontWeight: 800 }}>CONNECTING TO HOST...</div>
+          <div style={{ width: 40, height: 40, border: "4px solid rgba(6,182,212,.2)", borderTopColor: "#06b6d4", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+          <div style={{ fontFamily: F, color: "#06b6d4", letterSpacing: 3, fontWeight: 800 }}>CONNECTING TO HOST...</div>
         </div>
       )}
       <div style={{ position: "fixed", inset: 0, background: "radial-gradient(ellipse 100% 65% at 50% -5%,#091828,transparent),radial-gradient(ellipse 70% 50% at 95% 110%,#1a0a00,transparent)", pointerEvents: "none" }} />
@@ -5236,7 +5202,7 @@ export default function App() {
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <div style={{ fontFamily: F, fontSize: 11, letterSpacing: 10, color: "#3b82f6", marginBottom: 8 }}>EA SPORTS™ FC 26</div>
           <div style={{ fontFamily: F, fontWeight: 800, fontSize: "clamp(72px,22vw,130px)", lineHeight: .82, letterSpacing: -6, marginBottom: 16 }}>
-            <span style={{ color: "#fff" }}>AUC</span><span style={{ color: "#f59e0b" }}>TION</span>
+            <span style={{ color: "#fff" }}>AUC</span><span style={{ color: "#06b6d4" }}>TION</span>
           </div>
           <div style={{ fontFamily: F, fontSize: "clamp(11px,3vw,15px)", letterSpacing: 6, color: "rgba(255,255,255,.25)" }}>200 PLAYERS · OFFICIAL FC 26 RATINGS · 3 AUCTION ROUNDS</div>
         </div>
@@ -5251,7 +5217,7 @@ export default function App() {
                 }
               }} style={{ ...BTN("linear-gradient(135deg,#10b981,#047857)"), padding: "18px 0", fontSize: 16, letterSpacing: 4, color: "#fff", fontWeight: 800 }}>↺ REJOIN ROOM {session.roomId}</button>
             )}
-            <button onClick={() => { clearSession(); setRAction("create"); }} style={{ ...BTN("linear-gradient(135deg,#f59e0b,#d97706)"), padding: "18px 0", fontSize: 16, letterSpacing: 4, color: "#000", fontWeight: 800 }}>＋ CREATE ROOM</button>
+            <button onClick={() => { clearSession(); setRAction("create"); }} style={{ ...BTN("linear-gradient(135deg,#06b6d4,#0891b2)"), padding: "18px 0", fontSize: 16, letterSpacing: 4, color: "#000", fontWeight: 800 }}>＋ CREATE ROOM</button>
             <button onClick={() => { clearSession(); setRAction("join"); }} style={{ ...BTN("rgba(255,255,255,.06)"), padding: "18px 0", fontSize: 16, letterSpacing: 4, border: "1px solid rgba(255,255,255,.12)" }}>⟶ JOIN ROOM</button>
             <div style={{ textAlign: "center", fontSize: 11, color: "#374151", marginTop: 10, fontFamily: F, letterSpacing: 1, lineHeight: 1.8 }}>Marquee → Forwards → Midfielders → Defenders → Keepers<br />Then 2 reauction rounds for unsold players</div>
             
@@ -5302,14 +5268,14 @@ export default function App() {
               const { error } = await supabase.auth.signInWithPassword({ email: myName, password: myTeamN });
               if (error) setErr(error.message);
               else { setErr(""); setRAction(null); }
-            }} style={{ ...BTN("linear-gradient(135deg,#f59e0b,#d97706)"), padding: "16px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>LOGIN →</button>
+            }} style={{ ...BTN("linear-gradient(135deg,#06b6d4,#0891b2)"), padding: "16px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>LOGIN →</button>
             {err && <div style={{ color: "#f87171", fontSize: 12, textAlign: "center" }}>{err}</div>}
             <button onClick={() => setRAction(null)} style={BACK}>← Back</button>
           </div>
         ) : rAction === "create" ? (
           <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ fontFamily: F, fontWeight: 800, fontSize: 22, color: "#fff", letterSpacing: 2 }}>CREATE ROOM</div>
-            <div style={{ fontSize: 12, color: "#6b7280", padding: "10px 14px", background: "rgba(255,255,255,.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,.06)", lineHeight: 1.8 }}>You'll get a <b style={{ color: "#f59e0b" }}>6-letter code</b>. Share it — friends join from their own device.</div>
+            <div style={{ fontSize: 12, color: "#6b7280", padding: "10px 14px", background: "rgba(255,255,255,.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,.06)", lineHeight: 1.8 }}>You'll get a <b style={{ color: "#06b6d4" }}>6-letter code</b>. Share it — friends join from their own device.</div>
             <input value={roomName} onChange={e => setRoomName(e.target.value)} placeholder="Room name (e.g. Friday Night Draft)" style={{ ...INP, fontFamily: F, fontSize: 14 }} />
             <input value={myName} onChange={e => setMyName(e.target.value)} placeholder="Your name" style={{ ...INP, fontFamily: F, fontSize: 14 }} />
             <input value={myTeamN} onChange={e => setMyTeamN(e.target.value)} placeholder="Your team name" style={{ ...INP, fontFamily: F, fontSize: 14 }} />
@@ -5320,7 +5286,7 @@ export default function App() {
               dispatch({ type: "SET_SETUP", setup: [{ uid: session.uid, name: myName, team: myTeamN, online: true }] });
               dispatch({ type: "PATCH", patch: { phase: "config" } });
               initHost(code);
-            }} style={{ ...BTN("linear-gradient(135deg,#f59e0b,#d97706)"), padding: "16px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>CREATE →</button>
+            }} style={{ ...BTN("linear-gradient(135deg,#06b6d4,#0891b2)"), padding: "16px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>CREATE →</button>
             {err && <div style={{ color: "#f87171", fontSize: 12, textAlign: "center" }}>{err}</div>}
             <button onClick={() => setRAction(null)} style={BACK}>← Back</button>
           </div>
@@ -5350,7 +5316,7 @@ export default function App() {
   if (!isHost && phase === "config") return (
     <div style={PG}><style>{FONTS + ANIM}</style>
       <div style={{ maxWidth: 500, margin: "0 auto", padding: "40px 16px", display: "flex", flexDirection: "column", gap: 18, textAlign: "center" }}>
-        <div style={{ width: 40, height: 40, border: "4px solid rgba(245,158,11,.2)", borderTopColor: "#f59e0b", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 10px" }}></div>
+        <div style={{ width: 40, height: 40, border: "4px solid rgba(6,182,212,.2)", borderTopColor: "#06b6d4", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 10px" }}></div>
         <div style={{ fontFamily: F, fontWeight: 800, fontSize: 24, letterSpacing: 2, color: "#fff" }}>WAITING FOR HOST</div>
         <div style={{ fontSize: 13, color: "#6b7280" }}>The host is configuring the auction rules...</div>
         
@@ -5380,9 +5346,9 @@ export default function App() {
     <div style={PG}><style>{FONTS + ANIM}</style>
       <div style={{ maxWidth: 500, margin: "0 auto", padding: "28px 16px 60px", display: "flex", flexDirection: "column", gap: 18 }}>
         {room && (
-          <div style={{ padding: "12px 16px", background: "rgba(245,158,11,.07)", border: "1px solid rgba(245,158,11,.22)", borderRadius: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div><div style={{ fontSize: 9, color: "#f59e0b", fontFamily: F, letterSpacing: 3 }}>SHARE CODE WITH FRIENDS</div><div style={{ fontFamily: "'Courier New',monospace", fontSize: 30, fontWeight: 900, color: "#fff", letterSpacing: 9, marginTop: 4 }}>{room.id}</div></div>
-            <button onClick={() => navigator.clipboard?.writeText(room.id)} style={{ padding: "8px 14px", borderRadius: 10, background: "rgba(245,158,11,.12)", border: "1px solid rgba(245,158,11,.28)", color: "#f59e0b", fontFamily: F, fontSize: 12, cursor: "pointer", letterSpacing: 1 }}>COPY</button>
+          <div style={{ padding: "12px 16px", background: "rgba(6,182,212,.07)", border: "1px solid rgba(6,182,212,.22)", borderRadius: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div><div style={{ fontSize: 9, color: "#06b6d4", fontFamily: F, letterSpacing: 3 }}>SHARE CODE WITH FRIENDS</div><div style={{ fontFamily: "'Courier New',monospace", fontSize: 30, fontWeight: 900, color: "#fff", letterSpacing: 9, marginTop: 4 }}>{room.id}</div></div>
+            <button onClick={() => navigator.clipboard?.writeText(room.id)} style={{ padding: "8px 14px", borderRadius: 10, background: "rgba(6,182,212,.12)", border: "1px solid rgba(6,182,212,.28)", color: "#06b6d4", fontFamily: F, fontSize: 12, cursor: "pointer", letterSpacing: 1 }}>COPY</button>
           </div>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -5411,14 +5377,14 @@ export default function App() {
         </CBlock>
         <div style={{ fontSize: 12, color: "#6b7280", padding: "10px 14px", background: "rgba(59,130,246,.05)", borderRadius: 12, border: "1px solid rgba(59,130,246,.15)", lineHeight: 1.8 }}>
           📋 <b style={{ color: "#60a5fa" }}>Auction order:</b> Marquee → Forwards → Midfielders → Defenders → Goalkeepers<br />
-          🔄 After main auction: <b style={{ color: "#f59e0b" }}>30s selection window</b> to vote unsold players for Reauction<br />
+          🔄 After main auction: <b style={{ color: "#06b6d4" }}>30s selection window</b> to vote unsold players for Reauction<br />
         </div>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "12px 16px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14 }}>
           {[[`${cfg.pts}pt`, "PER TEAM"], [`${cfg.pool ? cfg.pool.length : PLAYERS.length}`, "PLAYERS"], [`${cfg.timer}s`, "TIMER"], ["AUTO", "AUCTIONEER"]].map(([v, l]) => (
             <div key={l} style={{ textAlign: "center" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, color: "#fff" }}>{v}</div><div style={{ fontSize: 9, color: "#6b7280", letterSpacing: 2, marginTop: 2 }}>{l}</div></div>
           ))}
         </div>
-        <button onClick={() => dispatch({ type: "PATCH", patch: { phase: "setup" } })} style={{ ...BTN("linear-gradient(135deg,#f59e0b,#d97706)"), padding: "15px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>OPEN WAITING LOBBY →</button>
+        <button onClick={() => dispatch({ type: "PATCH", patch: { phase: "setup" } })} style={{ ...BTN("linear-gradient(135deg,#06b6d4,#0891b2)"), padding: "15px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>OPEN WAITING LOBBY →</button>
       </div>
     </div>
   );
@@ -5490,14 +5456,14 @@ export default function App() {
         
         {/* ROOM CODE DISPLAY */}
         <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 20, padding: 28, textAlign: "center", position: "relative", overflow: "hidden" }}>
-           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 0%, rgba(245,158,11,0.12), transparent 70%)" }} />
+           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 0%, rgba(6,182,212,0.12), transparent 70%)" }} />
            <div style={{ position: "relative", zIndex: 1 }}>
-             <div style={{ fontFamily: F, color: "#f59e0b", letterSpacing: 6, fontSize: 11, marginBottom: 8, fontWeight: 700 }}>SHARE CODE WITH FRIENDS</div>
+             <div style={{ fontFamily: F, color: "#06b6d4", letterSpacing: 6, fontSize: 11, marginBottom: 8, fontWeight: 700 }}>SHARE CODE WITH FRIENDS</div>
              <div style={{ fontFamily: "'Courier New',monospace", fontSize: 52, fontWeight: 900, letterSpacing: 14, color: "#fff", marginBottom: 16 }}>{room?.id || session.roomId}</div>
              <button onClick={() => {
                 navigator.clipboard?.writeText(room?.id || session.roomId);
                 flash("Room Code Copied!");
-             }} style={{ background: "rgba(245,158,11,.15)", border: "1px solid rgba(245,158,11,.3)", color: "#f59e0b", padding: "8px 24px", borderRadius: 99, fontFamily: F, fontSize: 13, cursor: "pointer", letterSpacing: 2, fontWeight: 700 }}>COPY CODE</button>
+             }} style={{ background: "rgba(6,182,212,.15)", border: "1px solid rgba(6,182,212,.3)", color: "#06b6d4", padding: "8px 24px", borderRadius: 99, fontFamily: F, fontSize: 13, cursor: "pointer", letterSpacing: 2, fontWeight: 700 }}>COPY CODE</button>
            </div>
         </div>
 
@@ -5570,7 +5536,7 @@ export default function App() {
         {session.isHost ? (
           <button onClick={() => dispatch({ type: "START_AUCTION", setup, cfg })} style={{ ...BTN("linear-gradient(135deg,#10b981,#047857)"), padding: "20px", fontSize: 17, letterSpacing: 4, marginTop: 12 }}>⚽ START AUCTION</button>
         ) : (
-          <div style={{ textAlign: "center", color: "#f59e0b", fontFamily: F, letterSpacing: 2, padding: "20px", background: "rgba(245,158,11,.05)", borderRadius: 16, border: "1px solid rgba(245,158,11,.15)", marginTop: 12 }}>WAITING FOR HOST TO START...</div>
+          <div style={{ textAlign: "center", color: "#06b6d4", fontFamily: F, letterSpacing: 2, padding: "20px", background: "rgba(6,182,212,.05)", borderRadius: 16, border: "1px solid rgba(6,182,212,.15)", marginTop: 12 }}>WAITING FOR HOST TO START...</div>
         )}
       </div>
     </div>
@@ -5609,7 +5575,7 @@ export default function App() {
       <div style={PG}><style>{FONTS + ANIM}</style>
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px 80px", display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Header + timer */}
-          <div style={{ padding: "16px 18px", background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.25)", borderRadius: 18, display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ padding: "16px 18px", background: "rgba(6,182,212,.08)", border: "1px solid rgba(6,182,212,.25)", borderRadius: 18, display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{ position: "relative", flexShrink: 0 }}>
               <svg width={R * 2 + 14} height={R * 2 + 14} style={{ transform: "rotate(-90deg)" }}>
                 <circle cx={R + 7} cy={R + 7} r={R} fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="5" />
@@ -5620,7 +5586,7 @@ export default function App() {
               </div>
             </div>
             <div>
-              <div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, color: "#f59e0b", letterSpacing: 1 }}>🔄 {label}</div>
+              <div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, color: "#06b6d4", letterSpacing: 1 }}>🔄 {label}</div>
               <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4, lineHeight: 1.6 }}>{sub}</div>
             </div>
           </div>
@@ -5656,7 +5622,7 @@ export default function App() {
                     <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>{pl.club} · {pl.nat} · <span style={{ color: g2.a }}>OVR {pl.r}</span> · <span style={{ color: m.color }}>{m.icon} {m.label}</span></div>
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, color: voteCount > 0 ? "#f59e0b" : "#374151" }}>{voteCount}</div>
+                    <div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, color: voteCount > 0 ? "#06b6d4" : "#374151" }}>{voteCount}</div>
                     <div style={{ fontSize: 9, color: "#4b5563", letterSpacing: 1 }}>{voteCount === 1 ? "VOTE" : "VOTES"}</div>
                     {myVoted && <div style={{ fontSize: 9, color: "#4ade80", marginTop: 2 }}>✓ YOUR VOTE</div>}
                   </div>
@@ -5683,8 +5649,8 @@ export default function App() {
     <div style={PG}><style>{FONTS + ANIM}</style>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 16px 60px", display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ textAlign: "center", paddingBottom: 12 }}>
-          <div style={{ fontSize: 60, filter: "drop-shadow(0 0 30px #f59e0b)" }}>🏆</div>
-          <div style={{ fontFamily: F, fontWeight: 800, fontSize: 40, color: "#f59e0b", letterSpacing: 3 }}>DRAFT COMPLETE</div>
+          <div style={{ fontSize: 60, filter: "drop-shadow(0 0 30px #06b6d4)" }}>🏆</div>
+          <div style={{ fontFamily: F, fontWeight: 800, fontSize: 40, color: "#06b6d4", letterSpacing: 3 }}>DRAFT COMPLETE</div>
           <div style={{ fontSize: 13, color: "#6b7280", marginTop: 6 }}>{history.filter(h => h.bidderIdx != null).length} sold · {history.filter(h => h.bidderIdx == null).length} unsold · {history.reduce((s, h) => s + h.price, 0)}pt spent</div>
         </div>
         {[...teams].sort((a, b) => b.squad.reduce((s, p) => s + p.r, 0) - a.squad.reduce((s, p) => s + p.r, 0)).map((t, i) => {
@@ -5695,15 +5661,15 @@ export default function App() {
           const clubs = {};
           squadByClub.forEach(pl => { if (!clubs[pl.club]) clubs[pl.club] = []; clubs[pl.club].push(pl); });
           return (
-            <div key={i} style={{ background: "rgba(255,255,255,.03)", border: `1px solid ${i === 0 ? "rgba(245,158,11,.3)" : "rgba(255,255,255,.07)"}`, borderRadius: 20, overflow: "hidden", animation: `slideUp ${.1 + i * .08}s ease` }}>
-              <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", background: i === 0 ? "rgba(245,158,11,.05)" : "transparent" }}>
+            <div key={i} style={{ background: "rgba(255,255,255,.03)", border: `1px solid ${i === 0 ? "rgba(6,182,212,.3)" : "rgba(255,255,255,.07)"}`, borderRadius: 20, overflow: "hidden", animation: `slideUp ${.1 + i * .08}s ease` }}>
+              <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", background: i === 0 ? "rgba(6,182,212,.05)" : "transparent" }}>
                 <div>
-                  {i === 0 && <div style={{ fontFamily: F, fontSize: 9, color: "#f59e0b", letterSpacing: 3, marginBottom: 3 }}>🏆 WINNER</div>}
+                  {i === 0 && <div style={{ fontFamily: F, fontSize: 9, color: "#06b6d4", letterSpacing: 3, marginBottom: 3 }}>🏆 WINNER</div>}
                   <div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, color: "#fff" }}>{t.team}</div>
-                  <div style={{ fontSize: 11, color: "#6b7280" }}>{t.name} · avg {an.avgR} · OVR <span style={{ color: an.str > 70 ? "#22c55e" : an.str > 50 ? "#f59e0b" : "#ef4444" }}>{an.str}</span></div>
+                  <div style={{ fontSize: 11, color: "#6b7280" }}>{t.name} · avg {an.avgR} · OVR <span style={{ color: an.str > 70 ? "#22c55e" : an.str > 50 ? "#06b6d4" : "#ef4444" }}>{an.str}</span></div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontFamily: F, fontWeight: 800, fontSize: 24, color: "#f59e0b" }}>{t.budget}<span style={{ fontSize: 12, color: "#6b7280", fontWeight: 400 }}>pt</span></div>
+                  <div style={{ fontFamily: F, fontWeight: 800, fontSize: 24, color: "#06b6d4" }}>{t.budget}<span style={{ fontSize: 12, color: "#6b7280", fontWeight: 400 }}>pt</span></div>
                   <div style={{ fontSize: 11, color: "#9ca3af" }}>{t.squad.length} players</div>
                 </div>
               </div>
@@ -5722,7 +5688,7 @@ export default function App() {
                             <div>
                               <div style={{ color: g2.a, fontFamily: F, fontSize: 9, lineHeight: 1 }}>{pl.pos} OVR {pl.r}</div>
                               <div style={{ color: "#e5e7eb", fontSize: 11, fontWeight: 600 }}>{pl.s}</div>
-                              <div style={{ color: "#f59e0b", fontFamily: F, fontSize: 9 }}>{pl.price}pt</div>
+                              <div style={{ color: "#06b6d4", fontFamily: F, fontSize: 9 }}>{pl.price}pt</div>
                             </div>
                           </div>
                         );
@@ -5751,10 +5717,10 @@ export default function App() {
           <div style={{ fontFamily: F, fontWeight: 800, fontSize: 28, color: "#fff", letterSpacing: 2 }}>WHO ARE YOU?</div>
           <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Each person picks their role on their device</div>
         </div>
-        {cfg.needAuctioneer && <button onClick={() => { setRole("auctioneer"); setTab("bid"); }} style={{ background: "rgba(245,158,11,.06)", border: "2px solid rgba(245,158,11,.35)", borderRadius: 20, padding: "18px 20px", cursor: "pointer", textAlign: "left", width: "100%", display: "block" }}>
+        {cfg.needAuctioneer && <button onClick={() => { setRole("auctioneer"); setTab("bid"); }} style={{ background: "rgba(6,182,212,.06)", border: "2px solid rgba(6,182,212,.35)", borderRadius: 20, padding: "18px 20px", cursor: "pointer", textAlign: "left", width: "100%", display: "block" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#f59e0b,#d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>🎙️</div>
-            <div><div style={{ fontFamily: F, fontWeight: 800, fontSize: 20, color: "#f59e0b", letterSpacing: 1 }}>AUCTIONEER</div><div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, lineHeight: 1.6 }}>Controls auction. <b style={{ color: "#fff" }}>Does not bid.</b> Timer auto-sells.</div></div>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#06b6d4,#0891b2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>🎙️</div>
+            <div><div style={{ fontFamily: F, fontWeight: 800, fontSize: 20, color: "#06b6d4", letterSpacing: 1 }}>AUCTIONEER</div><div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, lineHeight: 1.6 }}>Controls auction. <b style={{ color: "#fff" }}>Does not bid.</b> Timer auto-sells.</div></div>
           </div>
         </button>}
         <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 20, padding: "14px" }}>
@@ -5767,7 +5733,7 @@ export default function App() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 {t.online && <div style={{ width: 8, height: 8, borderRadius: 99, background: "#10b981", boxShadow: "0 0 8px #10b981" }} />}
-                <div style={{ fontFamily: F, fontSize: 16, color: "#f59e0b" }}>{t.budget}<span style={{ fontSize: 10, color: "#6b7280" }}>pt</span></div>
+                <div style={{ fontFamily: F, fontSize: 16, color: "#06b6d4" }}>{t.budget}<span style={{ fontSize: 10, color: "#6b7280" }}>pt</span></div>
               </div>
             </button>
           ))}
@@ -5783,27 +5749,23 @@ export default function App() {
       {/* TOP BAR */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0, gap: 8, flexWrap: "wrap", background: "rgba(5,7,14,.97)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, letterSpacing: 1 }}><span style={{ color: "#fff" }}>FC</span><span style={{ color: "#f59e0b" }}>26</span></div>
-          {phase === "results" && <div style={{ padding: "3px 10px", borderRadius: 99, background: "rgba(245,158,11,.12)", border: "1px solid rgba(245,158,11,.3)", fontFamily: F, fontSize: 10, color: "#f59e0b", letterSpacing: 2 }}>🏆 DRAFT COMPLETE</div>}
+          <div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, letterSpacing: 1 }}><span style={{ color: "#fff" }}>FC</span><span style={{ color: "#06b6d4" }}>26</span></div>
+          {phase === "results" && <div style={{ padding: "3px 10px", borderRadius: 99, background: "rgba(6,182,212,.12)", border: "1px solid rgba(6,182,212,.3)", fontFamily: F, fontSize: 10, color: "#06b6d4", letterSpacing: 2 }}>🏆 DRAFT COMPLETE</div>}
           {isReauction && <div style={{ padding: "3px 10px", borderRadius: 99, background: "rgba(59,130,246,.12)", border: "1px solid rgba(59,130,246,.3)", fontFamily: F, fontSize: 10, color: "#60a5fa", letterSpacing: 2 }}>🔄 {raPhaseLabel}</div>}
           {!isReauction && phase !== "results" && catM && <div style={{ padding: "3px 10px", borderRadius: 99, background: catM.bg, border: `1px solid ${catM.color}33`, fontFamily: F, fontSize: 10, color: catM.color, letterSpacing: 2 }}>{catM.icon} {catM.label}</div>}
-          {role && <div style={{ padding: "3px 10px", borderRadius: 99, background: isAuctioneer ? "rgba(245,158,11,.1)" : "rgba(34,211,238,.08)", border: `1px solid ${isAuctioneer ? "rgba(245,158,11,.25)" : "rgba(34,211,238,.18)"}`, fontFamily: F, fontSize: 10, color: isAuctioneer ? "#f59e0b" : "#22d3ee", letterSpacing: 1 }}>{isAuctioneer ? "🎙️ AUCTIONEER" : `💰 ${teams[bidderIdx]?.team}`}</div>}
+          {role && <div style={{ padding: "3px 10px", borderRadius: 99, background: isAuctioneer ? "rgba(6,182,212,.1)" : "rgba(34,211,238,.08)", border: `1px solid ${isAuctioneer ? "rgba(6,182,212,.25)" : "rgba(34,211,238,.18)"}`, fontFamily: F, fontSize: 10, color: isAuctioneer ? "#06b6d4" : "#22d3ee", letterSpacing: 1 }}>{isAuctioneer ? "🎙️ AUCTIONEER" : `💰 ${teams[bidderIdx]?.team}`}</div>}
           {isR2 && activeTeam && <div style={{ padding: "3px 10px", borderRadius: 99, background: canBidR2 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)", border: `1px solid ${canBidR2 ? "rgba(34,197,94,.3)" : "rgba(239,68,68,.3)"}`, fontFamily: F, fontSize: 10, color: canBidR2 ? "#4ade80" : "#f87171", letterSpacing: 1 }}>{canBidR2 ? "✓ ELIGIBLE" : "✗ NOT ELIGIBLE"}</div>}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {noAuc && <select value={activeTi} onChange={e => dispatch({ type: "SET_ROLE", role: { bidder: +e.target.value } })} style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.14)", borderRadius: 10, color: "#fff", padding: "5px 10px", fontSize: 11, cursor: "pointer", fontFamily: F }}>
-            {teams.map((t, i) => <option key={i} value={i} style={{ background: "#0f1117" }}>{t.team} — {t.budget}pt · {t.squad.length}p</option>)}
-          </select>}
-          {activeTeam && <div style={{ fontFamily: F, fontSize: 14, color: "#f59e0b" }}>{activeTeam.budget}<span style={{ fontSize: 10, color: "#6b7280" }}>pt</span></div>}
-          {phase !== "results" && <div style={{ fontSize: 10, color: "#374151", fontFamily: F }}>{queue.length + 1} left</div>}
-          <button onClick={() => setRole(null)} style={{ ...BACK, fontSize: 10, padding: "4px 10px" }}>SWITCH ROLE</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {activeTeam && <div style={{ fontFamily: F, fontSize: 18, color: "#06b6d4", fontWeight: 800 }}>{activeTeam.budget}<span style={{ fontSize: 12, color: "#6b7280", marginLeft: 4, letterSpacing: 1 }}>PTS</span></div>}
+          {phase !== "results" && <div style={{ fontSize: 13, color: "#9ca3af", fontFamily: F, fontWeight: 700, letterSpacing: 2 }}>{queue.length + 1} LEFT</div>}
         </div>
       </div>
 
       {/* TABS */}
       <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0, background: "rgba(5,7,14,.9)" }}>
         {(phase === "results" ? [["dash", "📊 DASH"], ["squads", "👥 SQUADS"], ["list", "📋 LIST"]] : [["bid", "⚡ BID"], ["list", "📋 LIST"], ["dash", "📊 DASH"], ["squads", "👥 SQUADS"]]).map(([k, lb]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 0", background: "none", border: "none", fontFamily: F, fontWeight: 600, fontSize: 11, letterSpacing: 2, color: tab === k ? "#f59e0b" : "#4b5563", borderBottom: tab === k ? "2px solid #f59e0b" : "2px solid transparent", cursor: "pointer", transition: "all .2s" }}>{lb}</button>
+          <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 0", background: "none", border: "none", fontFamily: F, fontWeight: 600, fontSize: 11, letterSpacing: 2, color: tab === k ? "#06b6d4" : "#4b5563", borderBottom: tab === k ? "2px solid #06b6d4" : "2px solid transparent", cursor: "pointer", transition: "all .2s" }}>{lb}</button>
         ))}
       </div>
 
@@ -5921,7 +5883,7 @@ export default function App() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 9, color: "#4b5563", letterSpacing: 3, fontFamily: F, marginBottom: 4 }}>{isSold ? (current.status === "sold" ? "SOLD!" : "SKIPPED") : "CURRENT BID"}</div>
                     <div style={{ fontFamily: F, fontWeight: 800, fontSize: 52, color: "#fff", lineHeight: 1 }}>{current?.bid ?? 1}<span style={{ fontSize: 15, color: "#4b5563", fontWeight: 400 }}> pt</span></div>
-                    {current?.bidderIdx != null ? <div style={{ fontSize: 13, color: "#f59e0b", marginTop: 4 }}>🏆 {teams[current.bidderIdx]?.team}</div> : <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>No bids yet</div>}
+                    {current?.bidderIdx != null ? <div style={{ fontSize: 13, color: "#06b6d4", marginTop: 4 }}>🏆 {teams[current.bidderIdx]?.team}</div> : <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>No bids yet</div>}
                   </div>
                 </div>
 
@@ -5973,7 +5935,7 @@ export default function App() {
                 {/* AUCTIONEER */}
                 {isAuctioneer && !isSold && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <div style={{ padding: "10px 14px", background: "rgba(245,158,11,.06)", border: "1px solid rgba(245,158,11,.18)", borderRadius: 12, fontSize: 11, color: "#fbbf24", textAlign: "center", fontFamily: F, letterSpacing: 1 }}>🎙️ Timer auto-sells — hammer early or skip</div>
+                    <div style={{ padding: "10px 14px", background: "rgba(6,182,212,.06)", border: "1px solid rgba(6,182,212,.18)", borderRadius: 12, fontSize: 11, color: "#fbbf24", textAlign: "center", fontFamily: F, letterSpacing: 1 }}>🎙️ Timer auto-sells — hammer early or skip</div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
                       <button className="bb" onClick={() => dispatch({ type: "SELL" })} style={{ padding: "19px", borderRadius: 16, background: "linear-gradient(135deg,#10b981,#047857)", border: "none", color: "#fff", fontFamily: F, fontWeight: 800, fontSize: 19, cursor: "pointer", letterSpacing: 2, boxShadow: "0 4px 24px rgba(16,185,129,.25)" }}>🔨 HAMMER DOWN</button>
                       
@@ -5988,7 +5950,7 @@ export default function App() {
                             {isR2 && t.squad.length < 15 && <span style={{ fontSize: 9, color: "#4ade80", fontFamily: F }}>✓</span>}
                           </div>
                           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                            <span style={{ fontFamily: F, fontSize: 12, color: current?.bidderIdx === i ? "#f59e0b" : "#374151" }}>{t.budget}pt</span>
+                            <span style={{ fontFamily: F, fontSize: 12, color: current?.bidderIdx === i ? "#06b6d4" : "#374151" }}>{t.budget}pt</span>
                             <span style={{ fontSize: 10, color: "#374151" }}>{t.squad.length}/20</span>
                           </div>
                         </div>
@@ -6011,7 +5973,7 @@ export default function App() {
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <input className="ti" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/, ""))} onKeyDown={e => { if (e.key === "Enter") bidCustom(isR2); }} placeholder="Custom amount…" type="number" min="1" style={{ ...INP, flex: 1, fontFamily: F, fontSize: 20, textAlign: "center", padding: "13px", letterSpacing: 1 }} />
-                      <button className="bb" onClick={() => bidCustom(isR2)} style={{ padding: "13px 20px", borderRadius: 14, background: "linear-gradient(135deg,#f59e0b,#d97706)", border: "none", color: "#000", fontFamily: F, fontWeight: 800, fontSize: 14, cursor: "pointer", letterSpacing: 2, flexShrink: 0 }}>BID</button>
+                      <button className="bb" onClick={() => bidCustom(isR2)} style={{ padding: "13px 20px", borderRadius: 14, background: "linear-gradient(135deg,#06b6d4,#0891b2)", border: "none", color: "#000", fontFamily: F, fontWeight: 800, fontSize: 14, cursor: "pointer", letterSpacing: 2, flexShrink: 0 }}>BID</button>
                     </div>
                     {err && <div style={{ textAlign: "center", color: "#f87171", fontSize: 12, padding: "9px", background: "rgba(239,68,68,.08)", borderRadius: 10, border: "1px solid rgba(239,68,68,.18)", animation: "fadeIn .2s", fontFamily: F, letterSpacing: 1 }}>{err}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#4b5563", padding: "0 2px" }}>
@@ -6030,7 +5992,7 @@ export default function App() {
         {tab === "list" && (
           <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px 80px" }}>
             <div style={{ fontFamily: F, fontSize: 10, letterSpacing: 3, color: "#4b5563", marginBottom: 12 }}>{allRemaining.length} PLAYERS REMAINING</div>
-            {["M", "FWD", "MID", "DEF", "GK"].map(cat => {
+            {["M1", "M2", "FWD", "MID", "DEF", "GK"].map(cat => {
               const cps = allRemaining.filter(pl => pl.cat === cat);
               if (!cps.length) return null;
               const m = CAT_META[cat];
@@ -6039,21 +6001,21 @@ export default function App() {
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "7px 14px", borderRadius: 10, background: m.bg, border: `1px solid ${m.color}25` }}>
                     <span style={{ fontSize: 15 }}>{m.icon}</span>
                     <span style={{ fontFamily: F, fontWeight: 700, fontSize: 13, color: m.color, letterSpacing: 2 }}>{m.label}</span>
-                    {cat === "M" && <span style={{ fontSize: 9, color: m.color, opacity: .6 }}>RANDOM ORDER</span>}
+                    {cat.startsWith("M") && <span style={{ fontSize: 9, color: m.color, opacity: .6 }}>RANDOM ORDER</span>}
                     <span style={{ fontSize: 10, color: "#374151", marginLeft: "auto", fontFamily: F }}>{cps.length} left</span>
                   </div>
                   {cps.map((pl, i) => {
                     const g2 = cardGrade(pl.r, pl.cat); const isLive = i === 0 && pl === p; return (
-                      <div key={pl.id + i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: isLive ? "rgba(245,158,11,.06)" : "rgba(255,255,255,.02)", border: `1px solid ${isLive ? "rgba(245,158,11,.2)" : "rgba(255,255,255,.05)"}`, borderRadius: 13, marginBottom: 4 }}>
+                      <div key={pl.id + i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: isLive ? "rgba(6,182,212,.06)" : "rgba(255,255,255,.02)", border: `1px solid ${isLive ? "rgba(6,182,212,.2)" : "rgba(255,255,255,.05)"}`, borderRadius: 13, marginBottom: 4 }}>
                         <Avatar player={pl} size={46} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                            {isLive && <div style={{ width: 6, height: 6, borderRadius: 99, background: "#f59e0b", boxShadow: "0 0 6px #f59e0b", animation: "pulseDot 1s infinite", flexShrink: 0 }} />}
+                            {isLive && <div style={{ width: 6, height: 6, borderRadius: 99, background: "#06b6d4", boxShadow: "0 0 6px #06b6d4", animation: "pulseDot 1s infinite", flexShrink: 0 }} />}
                             <div style={{ fontSize: 14, color: "#fff", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pl.n}</div>
                           </div>
                           <div style={{ fontSize: 10, color: "#4b5563" }}>{pl.club} · {pl.nat} · <span style={{ color: PC[pl.pos] || "#9ca3af", fontFamily: F }}>{pl.pos}</span> <span style={{ color: g2.a }}>OVR {pl.r}</span></div>
                         </div>
-                        {isLive && <div style={{ fontFamily: F, fontSize: 9, color: "#f59e0b", letterSpacing: 2 }}>ON NOW</div>}
+                        {isLive && <div style={{ fontFamily: F, fontSize: 9, color: "#06b6d4", letterSpacing: 2 }}>ON NOW</div>}
                       </div>
                     );
                   })}
@@ -6068,7 +6030,7 @@ export default function App() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <div style={{ display: "flex", overflowX: "auto", padding: "8px 16px 0", gap: 5, flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,.05)" }}>
               {[["overview", "🌐 Overview"], ["compare", "📊 Compare"], ["log", "📜 Log"]].map(([k, lb]) => (
-                <button key={k} onClick={() => setDashSub(k)} style={{ padding: "7px 16px", borderRadius: "10px 10px 0 0", background: dashSub === k ? "rgba(245,158,11,.08)" : "transparent", border: dashSub === k ? "1px solid rgba(245,158,11,.2)" : "1px solid transparent", borderBottom: "none", fontFamily: F, fontSize: 11, color: dashSub === k ? "#f59e0b" : "#4b5563", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1 }}>{lb}</button>
+                <button key={k} onClick={() => setDashSub(k)} style={{ padding: "7px 16px", borderRadius: "10px 10px 0 0", background: dashSub === k ? "rgba(6,182,212,.08)" : "transparent", border: dashSub === k ? "1px solid rgba(6,182,212,.2)" : "1px solid transparent", borderBottom: "none", fontFamily: F, fontSize: 11, color: dashSub === k ? "#06b6d4" : "#4b5563", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1 }}>{lb}</button>
               ))}
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 80px" }}>
@@ -6076,8 +6038,8 @@ export default function App() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {teams.map((t, i) => {
                     const an = analyzeSquad(t.squad); const isMe = bidderIdx === i || (noAuc && activeTi === i); return (
-                      <div key={i} style={{ background: `rgba(255,255,255,${isMe ? .05 : .02})`, border: `1px solid ${isMe ? "rgba(245,158,11,.25)" : "rgba(255,255,255,.06)"}`, borderRadius: 18, overflow: "hidden" }}>
-                        <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.04)", display: "flex", justifyContent: "space-between", alignItems: "center", background: isMe ? "rgba(245,158,11,.04)" : "transparent" }}>
+                      <div key={i} style={{ background: `rgba(255,255,255,${isMe ? .05 : .02})`, border: `1px solid ${isMe ? "rgba(6,182,212,.25)" : "rgba(255,255,255,.06)"}`, borderRadius: 18, overflow: "hidden" }}>
+                        <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.04)", display: "flex", justifyContent: "space-between", alignItems: "center", background: isMe ? "rgba(6,182,212,.04)" : "transparent" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             {isMe && <span style={{ fontSize: 12 }}>👤</span>}
                             <span style={{ fontFamily: F, fontWeight: 800, fontSize: 16, color: "#fff" }}>{t.team}</span>
@@ -6086,14 +6048,14 @@ export default function App() {
                             {isR2 && t.squad.length < 15 && <span style={{ fontSize: 9, color: "#4ade80", marginLeft: 6, fontFamily: F }}>✓ R2</span>}
                           </div>
                           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                            {[{ v: an.str, l: "OVR", c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#f59e0b" : "#ef4444" }, { v: t.budget, l: "PTS", c: "#f59e0b" }, { v: `${t.squad.length}/20`, l: "SQ", c: t.squad.length < 15 ? "#ef4444" : "#22c55e" }].map(x => (
+                            {[{ v: an.str, l: "OVR", c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#06b6d4" : "#ef4444" }, { v: t.budget, l: "PTS", c: "#06b6d4" }, { v: `${t.squad.length}/20`, l: "SQ", c: t.squad.length < 15 ? "#ef4444" : "#22c55e" }].map(x => (
                               <div key={x.l} style={{ textAlign: "center" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 20, color: x.c, lineHeight: 1 }}>{x.v}</div><div style={{ fontSize: 7, color: "#4b5563", letterSpacing: 1, marginTop: 2 }}>{x.l}</div></div>
                             ))}
                           </div>
                         </div>
                         <div style={{ padding: "8px 14px 10px" }}>
                           <div style={{ display: "flex", gap: 5, marginBottom: 7 }}>
-                            {[{ l: "GK", v: an.gks, n: 1, c: "#f59e0b" }, { l: "DEF", v: an.defs, n: 4, c: "#818cf8" }, { l: "MID", v: an.mids, n: 3, c: "#34d399" }, { l: "FWD", v: an.fwds, n: 3, c: "#f87171" }].map(r => (
+                            {[{ l: "GK", v: an.gks, n: 1, c: "#06b6d4" }, { l: "DEF", v: an.defs, n: 4, c: "#818cf8" }, { l: "MID", v: an.mids, n: 3, c: "#34d399" }, { l: "FWD", v: an.fwds, n: 3, c: "#f87171" }].map(r => (
                               <div key={r.l} style={{ flex: 1, textAlign: "center", padding: "5px 2px", borderRadius: 9, background: `${r.c}${r.v >= r.n ? "12" : "07"}`, border: `1px solid ${r.c}${r.v >= r.n ? "35" : "18"}` }}>
                                 <div style={{ fontFamily: F, fontWeight: 800, fontSize: 15, color: r.v >= r.n ? r.c : "#374151" }}>{r.v}</div>
                                 <div style={{ fontSize: 7, color: "#374151", letterSpacing: .3 }}>{r.l}/{r.n}</div>
@@ -6101,7 +6063,7 @@ export default function App() {
                             ))}
                           </div>
                           <div style={{ height: 3, background: "rgba(255,255,255,.05)", borderRadius: 99, overflow: "hidden", marginBottom: 8 }}>
-                            <div style={{ height: "100%", width: `${(t.budget / cfg.pts) * 100}%`, background: `linear-gradient(90deg,${t.budget / cfg.pts > 0.5 ? "#22c55e" : t.budget / cfg.pts > 0.2 ? "#f59e0b" : "#ef4444"},transparent)`, borderRadius: 99, transition: "width .5s" }} />
+                            <div style={{ height: "100%", width: `${(t.budget / cfg.pts) * 100}%`, background: `linear-gradient(90deg,${t.budget / cfg.pts > 0.5 ? "#22c55e" : t.budget / cfg.pts > 0.2 ? "#06b6d4" : "#ef4444"},transparent)`, borderRadius: 99, transition: "width .5s" }} />
                           </div>
                           {t.squad.length > 0 && <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
                             {[...t.squad].sort((a, b) => b.r - a.r).slice(0, 8).map((pl, pi) => {
@@ -6110,7 +6072,7 @@ export default function App() {
                                   <Avatar player={pl} size={42} />
                                   <div style={{ fontFamily: F, fontWeight: 800, fontSize: 11, color: g2.a, lineHeight: 1, marginTop: 2 }}>{pl.r}</div>
                                   <div style={{ fontSize: 7, color: PC[pl.pos] || "#9ca3af" }}>{pl.pos}</div>
-                                  <div style={{ fontFamily: F, fontSize: 8, color: "#f59e0b" }}>{pl.price}pt</div>
+                                  <div style={{ fontFamily: F, fontSize: 8, color: "#06b6d4" }}>{pl.price}pt</div>
                                 </div>
                               );
                             })}
@@ -6125,7 +6087,7 @@ export default function App() {
               )}
               {dashSub === "compare" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {[{ k: "budget", l: "Budget", max: cfg.pts, c: "#60a5fa", f: v => `${v}pt` }, { k: "str", l: "Strength", max: 99, c: "#f59e0b", f: v => v || 0 }, { k: "avgR", l: "Avg Rating", max: 91, c: "#a78bfa", f: v => v || "—" }, { k: "total", l: "Players", max: 20, c: "#34d399", f: v => `${v}/20` }, { k: "gks", l: "GKs", max: 3, c: "#f59e0b", f: v => v }, { k: "defs", l: "Defenders", max: 8, c: "#818cf8", f: v => v }, { k: "mids", l: "Midfielders", max: 10, c: "#34d399", f: v => v }, { k: "fwds", l: "Forwards", max: 8, c: "#f87171", f: v => v }].map(stat => {
+                  {[{ k: "budget", l: "Budget", max: cfg.pts, c: "#60a5fa", f: v => `${v}pt` }, { k: "str", l: "Strength", max: 99, c: "#06b6d4", f: v => v || 0 }, { k: "avgR", l: "Avg Rating", max: 91, c: "#a78bfa", f: v => v || "—" }, { k: "total", l: "Players", max: 20, c: "#34d399", f: v => `${v}/20` }, { k: "gks", l: "GKs", max: 3, c: "#06b6d4", f: v => v }, { k: "defs", l: "Defenders", max: 8, c: "#818cf8", f: v => v }, { k: "mids", l: "Midfielders", max: 10, c: "#34d399", f: v => v }, { k: "fwds", l: "Forwards", max: 8, c: "#f87171", f: v => v }].map(stat => {
                     const vals = teams.map(t => { if (stat.k === "budget") return { t, v: t.budget }; const an = analyzeSquad(t.squad); return { t, v: an[stat.k] || 0 }; });
                     return (
                       <div key={stat.k} style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)", borderRadius: 14, padding: "12px 14px" }}>
@@ -6133,7 +6095,7 @@ export default function App() {
                         {vals.map(({ t, v }, i) => {
                           const isMe = bidderIdx === i || (noAuc && activeTi === i); return (
                             <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 6 }}>
-                              <div style={{ width: 60, fontSize: 10, color: isMe ? "#f59e0b" : "#4b5563", fontFamily: F, textAlign: "right", flexShrink: 0 }}>{t.team.slice(0, 7)}</div>
+                              <div style={{ width: 60, fontSize: 10, color: isMe ? "#06b6d4" : "#4b5563", fontFamily: F, textAlign: "right", flexShrink: 0 }}>{t.team.slice(0, 7)}</div>
                               <div style={{ flex: 1, height: 16, background: "rgba(255,255,255,.04)", borderRadius: 99, overflow: "hidden", position: "relative" }}>
                                 <div style={{ position: "absolute", inset: 0, width: `${Math.min(100, (v / stat.max) * 100)}%`, background: `linear-gradient(90deg,${stat.c},${stat.c}99)`, borderRadius: 99, transition: "width .7s cubic-bezier(0.34,1.56,0.64,1)", boxShadow: isMe ? `0 0 10px ${stat.c}88` : "none" }} />
                               </div>
@@ -6152,7 +6114,7 @@ export default function App() {
                   {!history.length && <div style={{ textAlign: "center", color: "#2d3748", fontSize: 14, paddingTop: 60, fontFamily: F, letterSpacing: 2 }}>NO SALES YET</div>}
                   {history.map((h, i) => {
                     const g2 = cardGrade(h.player.r, h.player.cat); const m = CAT_META[h.player.cat] || CAT_META.FWD; return (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "rgba(255,255,255,.02)", border: `1px solid ${h.bidderIdx != null ? "rgba(245,158,11,.08)" : "rgba(255,255,255,.04)"}`, borderRadius: 14 }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "rgba(255,255,255,.02)", border: `1px solid ${h.bidderIdx != null ? "rgba(6,182,212,.08)" : "rgba(255,255,255,.04)"}`, borderRadius: 14 }}>
                         <Avatar player={h.player} size={44} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, color: "#fff", fontWeight: 700 }}>{h.player.n}</div>
@@ -6160,7 +6122,7 @@ export default function App() {
                           <div style={{ fontSize: 9, color: m.color, marginTop: 3, fontFamily: F, letterSpacing: 1 }}>{m.icon} {m.label}{h.skipped ? " · SKIPPED" : ""}</div>
                         </div>
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          {h.bidderIdx != null ? (<><div style={{ fontFamily: F, fontWeight: 800, fontSize: 19, color: "#f59e0b" }}>{h.price}<span style={{ fontSize: 10, color: "#4b5563" }}>pt</span></div><div style={{ fontSize: 11, color: "#6b7280" }}>{teams[h.bidderIdx]?.team}</div></>) : <div style={{ fontFamily: F, fontSize: 12, color: "#374151" }}>UNSOLD</div>}
+                          {h.bidderIdx != null ? (<><div style={{ fontFamily: F, fontWeight: 800, fontSize: 19, color: "#06b6d4" }}>{h.price}<span style={{ fontSize: 10, color: "#4b5563" }}>pt</span></div><div style={{ fontSize: 11, color: "#6b7280" }}>{teams[h.bidderIdx]?.team}</div></>) : <div style={{ fontFamily: F, fontSize: 12, color: "#374151" }}>UNSOLD</div>}
                         </div>
                       </div>
                     );
@@ -6179,7 +6141,7 @@ export default function App() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <div style={{ display: "flex", overflowX: "auto", padding: "6px 12px 0", gap: 4, flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,.05)" }}>
               {teams.map((t, i) => (
-                <button key={i} onClick={() => dispatch({ type: "SET_SQ", idx: i })} style={{ padding: "8px 14px", background: sqView === i ? "rgba(245,158,11,.08)" : "none", border: sqView === i ? "1px solid rgba(245,158,11,.2)" : "1px solid transparent", borderRadius: "10px 10px 0 0", fontFamily: F, fontSize: 11, color: sqView === i ? "#f59e0b" : "#4b5563", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1, flexShrink: 0 }}>
+                <button key={i} onClick={() => dispatch({ type: "SET_SQ", idx: i })} style={{ padding: "8px 14px", background: sqView === i ? "rgba(6,182,212,.08)" : "none", border: sqView === i ? "1px solid rgba(6,182,212,.2)" : "1px solid transparent", borderRadius: "10px 10px 0 0", fontFamily: F, fontSize: 11, color: sqView === i ? "#06b6d4" : "#4b5563", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1, flexShrink: 0 }}>
                   {(bidderIdx === i || (noAuc && activeTi === i)) ? "👤 " : ""}{t.team}
                   {isR2 && t.squad.length < 15 && <span style={{ color: "#4ade80", marginLeft: 4 }}>✓</span>}
                 </button>
@@ -6195,7 +6157,7 @@ export default function App() {
               return (
                 <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px 80px" }}>
                   <div style={{ display: "flex", gap: 7, marginBottom: 14 }}>
-                    {[{ l: "OVR", v: an.str, c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#f59e0b" : "#ef4444" }, { l: "AVG", v: an.avgR || "—", c: "#f59e0b" }, { l: "SQUAD", v: `${sq.length}/20`, c: sq.length < 15 ? "#ef4444" : "#22c55e" }, { l: "BUDGET", v: `${t.budget}pt`, c: "#a78bfa" }].map(({ l, v, c }) => (
+                    {[{ l: "OVR", v: an.str, c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#06b6d4" : "#ef4444" }, { l: "AVG", v: an.avgR || "—", c: "#06b6d4" }, { l: "SQUAD", v: `${sq.length}/20`, c: sq.length < 15 ? "#ef4444" : "#22c55e" }, { l: "BUDGET", v: `${t.budget}pt`, c: "#a78bfa" }].map(({ l, v, c }) => (
                       <div key={l} style={{ flex: 1, textAlign: "center", padding: "8px 4px", background: "rgba(255,255,255,.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,.06)" }}>
                         <div style={{ fontFamily: F, fontWeight: 800, fontSize: 17, color: c, lineHeight: 1 }}>{v}</div>
                         <div style={{ fontSize: 8, color: "#4b5563", letterSpacing: .5, marginTop: 3 }}>{l}</div>
@@ -6206,7 +6168,7 @@ export default function App() {
                     <div style={{ fontSize: 10, color: "#4b5563", fontFamily: F, letterSpacing: 2, marginBottom: 7 }}>FORMATION</div>
                     <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
                       {Object.keys(FORMATIONS).map(f => (
-                        <button key={f} onClick={() => dispatch({ type: "SET_FORM", f })} style={{ padding: "7px 16px", borderRadius: 99, background: formation === f ? "linear-gradient(135deg,#f59e0b,#d97706)" : "rgba(255,255,255,.04)", border: `1px solid ${formation === f ? "#f59e0b44" : "rgba(255,255,255,.09)"}`, color: formation === f ? "#000" : "#6b7280", fontFamily: F, fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1 }}>{f}</button>
+                        <button key={f} onClick={() => dispatch({ type: "SET_FORM", f })} style={{ padding: "7px 16px", borderRadius: 99, background: formation === f ? "linear-gradient(135deg,#06b6d4,#0891b2)" : "rgba(255,255,255,.04)", border: `1px solid ${formation === f ? "#06b6d444" : "rgba(255,255,255,.09)"}`, color: formation === f ? "#000" : "#6b7280", fontFamily: F, fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1 }}>{f}</button>
                       ))}
                     </div>
                   </div>
@@ -6251,7 +6213,7 @@ export default function App() {
                                     {placed && <span style={{ padding: "1px 5px", borderRadius: 4, background: "rgba(16,185,129,.18)", color: "#4ade80", fontSize: 8, fontFamily: F }}>✓</span>}
                                   </div>
                                 </div>
-                                <div style={{ fontFamily: F, fontSize: 14, color: "#f59e0b", flexShrink: 0 }}>{pl.price}<span style={{ fontSize: 9, color: "#4b5563" }}>pt</span></div>
+                                <div style={{ fontFamily: F, fontSize: 14, color: "#06b6d4", flexShrink: 0 }}>{pl.price}<span style={{ fontSize: 9, color: "#4b5563" }}>pt</span></div>
                               </div>
                             );
                           })}
@@ -6282,7 +6244,7 @@ export default function App() {
 }
 
 function CBlock({ title, children }) { return (<div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: "14px 16px" }}><div style={{ fontFamily: F, fontSize: 10, color: "#4b5563", letterSpacing: 3, marginBottom: 10 }}>{title}</div>{children}</div>); }
-function CBtn({ active, col = "#f59e0b", onClick, children }) { return (<button onClick={onClick} style={{ padding: "12px 0", borderRadius: 12, background: active ? `linear-gradient(135deg,${col},${col}cc)` : "rgba(255,255,255,.05)", border: `1px solid ${active ? col + "44" : "rgba(255,255,255,.08)"}`, color: active ? (col === "#f59e0b" ? "#000" : "#fff") : "#4b5563", fontFamily: F, fontWeight: 700, fontSize: 16, cursor: "pointer", transition: "all .18s", letterSpacing: 1 }}>{children}</button>); }
+function CBtn({ active, col = "#06b6d4", onClick, children }) { return (<button onClick={onClick} style={{ padding: "12px 0", borderRadius: 12, background: active ? `linear-gradient(135deg,${col},${col}cc)` : "rgba(255,255,255,.05)", border: `1px solid ${active ? col + "44" : "rgba(255,255,255,.08)"}`, color: active ? (col === "#06b6d4" ? "#000" : "#fff") : "#4b5563", fontFamily: F, fontWeight: 700, fontSize: 16, cursor: "pointer", transition: "all .18s", letterSpacing: 1 }}>{children}</button>); }
 const PG = { minHeight: "100vh", background: "#050810", color: "#fff", fontFamily: F, display: "flex", flexDirection: "column" };
 const INP = { background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 11, padding: "10px 14px", color: "#fff", fontSize: 13, width: "100%", boxSizing: "border-box", outline: "none" };
 const BTN = bg => ({ background: bg, border: "none", borderRadius: 16, color: "#fff", fontFamily: F, fontWeight: 700, letterSpacing: 2, cursor: "pointer", transition: "all .2s", display: "block", width: "100%", textAlign: "center" });
