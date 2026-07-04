@@ -5118,20 +5118,79 @@ export default function App() {
   const [adminRooms, setAdminRooms] = useState([]);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: sbSession } }) => {
+      setAdminUser(sbSession?.user ?? null);
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, sbSession) => {
+      setAdminUser(sbSession?.user ?? null);
+    });
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (adminUser) {
+      supabase.from('rooms').select('id, state, updated_at').eq('admin_id', adminUser.id).order('updated_at', { ascending: false }).then(({ data }) => setAdminRooms(data || []));
+    }
+  }, [adminUser]);
+
+  const intervalRef = useRef(null);
+  const selIntervalRef = useRef(null);
+  const prevStatusRef = useRef(null);
+
+  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formation, formSlots, sqView, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool } = s;
+  const isAuctioneer = role === "auctioneer";
+  const bidderIdx = role && role !== "auctioneer" ? role.bidder : null;
+  const noAuc = !cfg.needAuctioneer;
+  const activeTi = bidderIdx ?? 0;
+  const activeTeam = teams[noAuc ? activeTi : bidderIdx ?? 0];
+
+  const isHost = session.isHost === true;
+
+  // Auto-assign role based on UID if in auction
+  useEffect(() => {
+    if (phase !== "lobby" && phase !== "config" && phase !== "setup" && !role) {
+      if (cfg.needAuctioneer && session.isHost) {
+        setRole("auctioneer");
+      } else {
+        const myTeamIdx = teams.findIndex(t => t.uid === session.uid);
+        if (myTeamIdx !== -1) {
+          setRole({ bidder: myTeamIdx });
+        }
+      }
+    }
+  }, [phase, role, teams, session.uid, session.isHost, cfg.needAuctioneer]);
+
+  /* ── Wall-clock timer ── */
+  useEffect(() => {
+    clearInterval(intervalRef.current);
+    if (!current || current.status !== "active") { setSecs(0); return; }
+    const tick = () => {
+      const rem = Math.max(0, Math.ceil((current.timerEnd - Date.now()) / 1000));
+      setSecs(rem);
+      if (rem <= 0) { clearInterval(intervalRef.current); dispatch({ type: "SELL" }); }
+    };
+    tick(); intervalRef.current = setInterval(tick, 250);
+    return () => clearInterval(intervalRef.current);
+  }, [current?.uid, current?.timerEnd, current?.status]);
+
+  /* ── Selection phase countdown ── */
+  useEffect(() => {
     clearInterval(selIntervalRef.current);
-    if (s.phase !== "ra1_pick" && s.phase !== "ra2_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
-    
+    if (phase !== "ra1_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
+    setSelSecs(REAUCTION_SELECT_SECS);
+    const end = Date.now() + REAUCTION_SELECT_SECS * 1000;
     selIntervalRef.current = setInterval(() => {
-      const end = s.selTimerEnd || (Date.now() + REAUCTION_SELECT_SECS * 1000);
       const rem = Math.max(0, Math.ceil((end - Date.now()) / 1000));
       setSelSecs(rem);
       if (rem <= 0) {
         clearInterval(selIntervalRef.current);
-        dispatch({ type: s.phase === "ra1_pick" ? "CONFIRM_RA1_SELECTION" : "CONFIRM_RA2_SELECTION" });
+        dispatch({ type: "CONFIRM_RA1_SELECTION" });
       }
     }, 250);
     return () => clearInterval(selIntervalRef.current);
-  }, [s.phase, s.selTimerEnd]);
+  }, [phase]);
 
   /* ── Auto-advance after sold/skipped ── */
   useEffect(() => {

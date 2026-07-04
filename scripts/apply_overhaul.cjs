@@ -39,23 +39,40 @@ const audio = {
 // Add audio calls to Reducer
 app = app.replace(/case "PLACE_BID": \{/g, 'case "PLACE_BID": {\n      audio.bid();');
 app = app.replace(/case "PLACE_BID_R2": \{/g, 'case "PLACE_BID_R2": {\n      audio.bid();');
-app = app.replace(/current: \{ \.\.\.cur, status: "sold" \}/g, 'current: { ...cur, status: "sold" }'); // handled by auto-advance below to avoid multi-play
-// actually better to play sold/skip in the UI when status changes.
+
+// Also inject audio.tick() into the active player countdown:
+app = app.replace(/setSecs\(Math\.ceil\(rem\)\);/g, 'setSecs(Math.ceil(rem));\n      if (Math.ceil(rem) <= 5 && Math.ceil(rem) > 0 && Math.ceil(rem) !== Math.ceil(rem + 0.1)) audio.tick();'); // Simple fix for ticking
 
 // 4. Reauction Timer + 60s
 app = app.replace(/const REAUCTION_SELECT_SECS = 30;/g, 'const REAUCTION_SELECT_SECS = 60;');
 
 // 5. Reducer extensions for timer
-const nextPlayerIdx = app.indexOf('return { ...s, phase: "ra1_pick", selVotes: {} };');
 app = app.replace(/return \{ \.\.\.s, phase: "ra1_pick", selVotes: \{\} \};/g, 'return { ...s, phase: "ra1_pick", selVotes: {}, selTimerEnd: Date.now() + 60000 };');
 app = app.replace(/return \{ \.\.\.s, phase: "ra2_pick", selVotes: \{\} \};/g, 'return { ...s, phase: "ra2_pick", selVotes: {}, selTimerEnd: Date.now() + 60000 };');
 
 app = app.replace(/case "RESET": return \{ \.\.\.INIT \};/g, 'case "RESET": return { ...INIT };\n    case "EXTEND_SEL_TIMER": return { ...s, selTimerEnd: (s.selTimerEnd || Date.now()) + 30000 };');
 
 // Timer logic update for Reauction
-const selTimerLogicRegex = /useEffect\(\(\) => \{[\s\S]*?clearInterval\(selIntervalRef\.current\);[\s\S]*?const end = Date\.now\(\) \+ REAUCTION_SELECT_SECS \* 1000;[\s\S]*?\}, 250\);[\s\S]*?return \(\) => clearInterval\(selIntervalRef\.current\);[\s\S]*?\}, \[phase\]\);/;
+// I'll replace EXACT strings.
+let targetStr = `/* ── Selection phase countdown ── */
+  useEffect(() => {
+    clearInterval(selIntervalRef.current);
+    if (phase !== "ra1_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
+    setSelSecs(REAUCTION_SELECT_SECS);
+    const end = Date.now() + REAUCTION_SELECT_SECS * 1000;
+    selIntervalRef.current = setInterval(() => {
+      const rem = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      setSelSecs(rem);
+      if (rem <= 0) {
+        clearInterval(selIntervalRef.current);
+        dispatch({ type: "CONFIRM_RA1_SELECTION" });
+      }
+    }, 250);
+    return () => clearInterval(selIntervalRef.current);
+  }, [phase]);`;
 
-const newSelTimerLogic = `useEffect(() => {
+let replacementStr = `/* ── Selection phase countdown ── */
+  useEffect(() => {
     clearInterval(selIntervalRef.current);
     if (phase !== "ra1_pick" && phase !== "ra2_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
     
@@ -71,29 +88,21 @@ const newSelTimerLogic = `useEffect(() => {
     return () => clearInterval(selIntervalRef.current);
   }, [phase, s.selTimerEnd]);`;
   
-app = app.replace(selTimerLogicRegex, newSelTimerLogic);
+app = app.replace(targetStr, replacementStr);
 
 
 // 6. Top Nav Cleanup
-const topNavRegex = /<div style=\{\{ display: "flex", alignItems: "center", gap: 10 \}\}>\s*\{noAuc && <select[\s\S]*?<\/select>\}\s*\{activeTeam && <div style=\{\{ fontFamily: F, fontSize: 14, color: "#06b6d4" \}\}>\{activeTeam\.budget\}<span style=\{\{ fontSize: 10, color: "#6b7280" \}\}>pt<\/span><\/div>\}\s*\{phase !== "results" && <div style=\{\{ fontSize: 10, color: "#374151", fontFamily: F \}\}>\{queue\.length \+ 1\} left<\/div>\}\s*<button onClick=\{\(\) => setRole\(null\)\} style=\{\{ \.\.\.BACK, fontSize: 10, padding: "4px 10px" \}\}>SWITCH ROLE<\/button>\s*<\/div>/;
+const topNavRegex = /<div style=\{\{ display: "flex", alignItems: "center", gap: 10 \}\}>\s*\{noAuc && <select[\s\S]*?SWITCH ROLE<\/button>\s*<\/div>/;
 
 const newTopNav = `<div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {activeTeam && <div style={{ fontFamily: F, fontSize: 18, color: "#06b6d4", fontWeight: 800 }}>{activeTeam.budget}<span style={{ fontSize: 12, color: "#6b7280", marginLeft: 4, letterSpacing: 1 }}>PTS</span></div>}
           {phase !== "results" && <div style={{ fontSize: 13, color: "#9ca3af", fontFamily: F, fontWeight: 700, letterSpacing: 2 }}>{queue.length + 1} LEFT</div>}
         </div>`;
-        
-if (topNavRegex.test(app)) {
-  app = app.replace(topNavRegex, newTopNav);
-} else {
-  console.log("Top nav regex failed.");
-  // try broader regex for top nav
-  const broaderNav = /<div style=\{\{ display: "flex", alignItems: "center", gap: 10 \}\}>\s*\{noAuc && <select[\s\S]*?SWITCH ROLE<\/button>\s*<\/div>/;
-  app = app.replace(broaderNav, newTopNav);
-}
+app = app.replace(topNavRegex, newTopNav);
 
 // 7. Add +30s button in Reauction Selection UI
 const selHeaderRegex = /<div style=\{\{ fontFamily: F, fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 \}\}>\{label\}<\/div>/;
 app = app.replace(selHeaderRegex, `<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}><div style={{ fontFamily: F, fontSize: 18, fontWeight: 800, color: "#fff" }}>{label}</div>{isHost && <button onClick={() => dispatch({ type: "EXTEND_SEL_TIMER" })} style={{ ...BTN("rgba(255,255,255,.1)"), padding: "6px 12px", fontSize: 11 }}>⏱️ +30s</button>}</div>`);
 
 fs.writeFileSync('src/App.jsx', app);
-console.log("Applied UI Overhaul and Engine successfully!");
+console.log("Applied UI Overhaul and Engine safely!");
