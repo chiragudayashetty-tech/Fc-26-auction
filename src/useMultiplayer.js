@@ -69,9 +69,13 @@ export function useMultiplayer(reducer, initialState) {
         saveLocalSession({ roomId, isHost: true });
 
         // Safely fetch latest state before allowing useEffect to overwrite
-        const { data } = await supabase.from('rooms').select('state').eq('id', roomId).single();
-        if (data && data.state) {
-            dispatchLocal({ type: "SYNC_STATE", state: data.state });
+        try {
+            const { data } = await supabase.from('rooms').select('state').eq('id', roomId).single();
+            if (data && data.state) {
+                dispatchLocal({ type: "SYNC_STATE", state: data.state });
+            }
+        } catch (err) {
+            console.warn("Room state fetch failed (expected for new rooms):", err);
         }
 
         const channel = supabase.channel(`room_${roomId}`);
@@ -107,9 +111,13 @@ export function useMultiplayer(reducer, initialState) {
         roomIdRef.current = roomId;
         saveLocalSession({ roomId, isHost: false, name, team: teamName });
 
-        const { data } = await supabase.from('rooms').select('state').eq('id', roomId).single();
-        if (data && data.state) {
-            dispatchLocal({ type: "SYNC_STATE", state: data.state });
+        try {
+            const { data } = await supabase.from('rooms').select('state').eq('id', roomId).single();
+            if (data && data.state) {
+                dispatchLocal({ type: "SYNC_STATE", state: data.state });
+            }
+        } catch (err) {
+            console.warn("Room state fetch failed:", err);
         }
 
         const channel = supabase.channel(`room_${roomId}`);
