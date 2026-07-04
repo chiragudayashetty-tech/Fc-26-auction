@@ -228,12 +228,9 @@ const F = "'Barlow Condensed',system-ui,sans-serif";
 const REAUCTION_SELECT_SECS = 30;
 
 function cardGrade(r, cat) {
-  if (cat === "M") return { a: "#f59e0b", bg: "linear-gradient(155deg,#3d1a00,#120800)", lbl: "MARQUEE", lc: "#000" };
-  if (r >= 91) return { a: "#e879f9", bg: "linear-gradient(155deg,#2e0764,#0a0018)", lbl: "ICON", lc: "#fff" };
-  if (r >= 89) return { a: "#60a5fa", bg: "linear-gradient(155deg,#172454,#040c20)", lbl: "ELITE", lc: "#fff" };
-  if (r >= 87) return { a: "#4ade80", bg: "linear-gradient(155deg,#0e3d1e,#030f07)", lbl: "RARE", lc: "#000" };
-  if (r >= 84) return { a: "#fbbf24", bg: "linear-gradient(155deg,#3d2000,#0d0600)", lbl: "GOLD", lc: "#000" };
-  return { a: "#a3a3a3", bg: "linear-gradient(155deg,#1a1917,#070707)", lbl: "SILVER", lc: "#000" };
+  if (cat === "M" || r >= 84) return { a: "#fbbf24", bg: "linear-gradient(155deg,#eab308,#854d0e)", lbl: "GOLD", lc: "#000" };
+  if (r >= 75) return { a: "#cbd5e1", bg: "linear-gradient(155deg,#94a3b8,#475569)", lbl: "SILVER", lc: "#000" };
+  return { a: "#d97706", bg: "linear-gradient(155deg,#b45309,#78350f)", lbl: "BRONZE", lc: "#fff" };
 }
 
 function Avatar({ player, size = 80 }) {
@@ -286,7 +283,7 @@ function analyzeSquad(sq) {
 const INIT = {
   phase: "lobby",
   room: null,
-  cfg: { pts: 100, num: 60, timer: 20, needAuctioneer: true },
+  cfg: { pts: 100, pool: null, timer: 20, needAuctioneer: true },
   setup: [],
   teams: [],
   queue: [],
@@ -306,16 +303,20 @@ const INIT = {
 
 function mkQueue(cfg) {
   const sh = a => [...a].sort(() => Math.random() - 0.5);
+  // Default to all players if pool is not set
+  const poolIds = cfg.pool || PLAYERS.map(p => p.id);
+  const activePlayers = PLAYERS.filter(p => poolIds.includes(p.id));
+  
   // ORDER: Marquee → Forwards → Midfielders → Defenders → Goalkeepers
-  const marquee = sh(PLAYERS.filter(p => p.cat === "M"));
-  const fwd = sh(PLAYERS.filter(p => p.cat === "FWD"));
-  const mid = sh(PLAYERS.filter(p => p.cat === "MID"));
-  const def = sh(PLAYERS.filter(p => p.cat === "DEF"));
-  const gk = sh(PLAYERS.filter(p => p.cat === "GK"));
+  const marquee = sh(activePlayers.filter(p => p.cat === "M"));
+  const fwd = sh(activePlayers.filter(p => p.cat === "FWD"));
+  const mid = sh(activePlayers.filter(p => p.cat === "MID"));
+  const def = sh(activePlayers.filter(p => p.cat === "DEF"));
+  const gk = sh(activePlayers.filter(p => p.cat === "GK"));
+  
   const seen = new Set();
   return [...marquee, ...fwd, ...mid, ...def, ...gk]
-    .filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; })
-    .slice(0, Math.min(cfg.num, 200));
+    .filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
 }
 
 function reducer(s, a) {
@@ -421,18 +422,8 @@ function reducer(s, a) {
         }
         // End of reauction round 1
         if (s.phase === "ra1_auction") {
-          // Collect still-unsold from this round
-          const ra1Unsold = [...s.ra1Unsold];
-          if (s.current && s.current.status !== "active") {
-            if (s.current.bidderIdx == null) ra1Unsold.push(s.current.player);
-          }
-          // Check if any team has <15 players
-          const needsRound2 = s.teams.some(t => t.squad.length < 15) && ra1Unsold.length > 0;
-          if (needsRound2) return { ...s, ra1Unsold, phase: "ra2_pick", selVotes: {}, current: null };
-          return { ...s, ra1Unsold, phase: "results", current: null };
+          return { ...s, phase: "results", current: null };
         }
-        // End of reauction round 2
-        if (s.phase === "ra2_auction") return { ...s, phase: "results", current: null };
         return { ...s, phase: "results" };
       }
       const [next, ...rest] = s.queue;
@@ -555,8 +546,7 @@ export default function App() {
   const noAuc = !cfg.needAuctioneer;
   const activeTi = bidderIdx ?? 0;
   const activeTeam = teams[noAuc ? activeTi : bidderIdx ?? 0];
-  const isR2 = phase === "ra2_auction" || phase === "ra2_pick";
-  const canBidR2 = isR2 && activeTeam && activeTeam.squad.length < 15;
+
   const isHost = session.isHost === true;
 
   // Auto-assign role based on UID if in auction
@@ -589,7 +579,7 @@ export default function App() {
   /* ── Selection phase countdown ── */
   useEffect(() => {
     clearInterval(selIntervalRef.current);
-    if (phase !== "ra1_pick" && phase !== "ra2_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
+    if (phase !== "ra1_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
     setSelSecs(REAUCTION_SELECT_SECS);
     const end = Date.now() + REAUCTION_SELECT_SECS * 1000;
     selIntervalRef.current = setInterval(() => {
@@ -597,7 +587,7 @@ export default function App() {
       setSelSecs(rem);
       if (rem <= 0) {
         clearInterval(selIntervalRef.current);
-        dispatch({ type: phase === "ra1_pick" ? "CONFIRM_RA1_SELECTION" : "CONFIRM_RA2_SELECTION" });
+        dispatch({ type: "CONFIRM_RA1_SELECTION" });
       }
     }, 250);
     return () => clearInterval(selIntervalRef.current);
@@ -609,12 +599,14 @@ export default function App() {
     if (current.status === "active") { prevStatusRef.current = "active"; return; }
     if (prevStatusRef.current !== "active") return;
     prevStatusRef.current = current.status;
-    if (!isAuctioneer) {
+    
+    // Only the Host triggers auto-advance to prevent multiple dispatch issues
+    if (isHost && (noAuc || current.status === "skipped")) {
       const delay = current.status === "sold" ? 2200 : 1200;
       const t = setTimeout(() => dispatch({ type: "NEXT_PLAYER" }), delay);
       return () => clearTimeout(t);
     }
-  }, [current?.status]);
+  }, [current?.status, isHost, noAuc]);
 
   /* ── Banner ── */
   useEffect(() => {
@@ -647,9 +639,9 @@ export default function App() {
   const R = 38, C = 2 * Math.PI * R;
   const allRemaining = p ? [p, ...queue] : queue;
   const curSlots = formSlots[sqView] || {};
-  const isReauction = phase === "ra1_auction" || phase === "ra2_auction";
-  const isPickPhase = phase === "ra1_pick" || phase === "ra2_pick";
-  const pickPool = phase === "ra1_pick" ? unsoldPool : ra1Unsold;
+  const isReauction = phase === "ra1_auction";
+  const isPickPhase = phase === "ra1_pick";
+  const pickPool = unsoldPool;
 
   /* ════════════════════════════════════════════════════════
      LOBBY
@@ -828,10 +820,12 @@ export default function App() {
           <input value={cfg.pts} onChange={e => dispatch({ type: "SET_CFG", patch: { pts: Math.max(50, +e.target.value || 100) } })} type="number" placeholder="Custom…" style={{ ...INP, fontFamily: F, fontSize: 16, textAlign: "center" }} />
         </CBlock>
         <CBlock title="📋 PLAYERS TO AUCTION">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 8 }}>
-            {[30, 60, 100, 200].map(v => <CBtn key={v} active={cfg.num === v} col="#3b82f6" onClick={() => dispatch({ type: "SET_CFG", patch: { num: v } })}>{v}</CBtn>)}
-          </div>
-          <input value={cfg.num} onChange={e => dispatch({ type: "SET_CFG", patch: { num: Math.min(200, Math.max(10, +e.target.value || 60)) } })} type="number" placeholder="Custom (max 200)…" style={{ ...INP, fontFamily: F, fontSize: 16, textAlign: "center" }} />
+          <button onClick={() => {
+            if (!cfg.pool) dispatch({ type: "SET_CFG", patch: { pool: PLAYERS.map(p=>p.id) } });
+            dispatch({ type: "PATCH", patch: { phase: "pool_select" } });
+          }} style={{ ...BTN("linear-gradient(135deg,#3b82f6,#1d4ed8)"), padding: "14px", fontSize: 13, letterSpacing: 2, width: "100%" }}>
+            ⚙️ CONFIGURE PLAYER POOL ({cfg.pool ? cfg.pool.length : PLAYERS.length} PLAYERS)
+          </button>
         </CBlock>
         <CBlock title="⏱️ BID TIMER — auto-sells at 0">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 8 }}>
@@ -847,11 +841,10 @@ export default function App() {
         </CBlock>
         <div style={{ fontSize: 12, color: "#6b7280", padding: "10px 14px", background: "rgba(59,130,246,.05)", borderRadius: 12, border: "1px solid rgba(59,130,246,.15)", lineHeight: 1.8 }}>
           📋 <b style={{ color: "#60a5fa" }}>Auction order:</b> Marquee → Forwards → Midfielders → Defenders → Goalkeepers<br />
-          🔄 After main auction: <b style={{ color: "#f59e0b" }}>30s selection window</b> to vote unsold players for Round 1 reauction<br />
-          🔄 Round 2 reauction for teams with <b style={{ color: "#ef4444" }}>under 15 players</b>
+          🔄 After main auction: <b style={{ color: "#f59e0b" }}>30s selection window</b> to vote unsold players for Reauction<br />
         </div>
         <div style={{ display: "flex", justifyContent: "space-around", padding: "12px 16px", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14 }}>
-          {[[`${cfg.pts}pt`, "PER TEAM"], [`${cfg.num}`, "PLAYERS"], [`${cfg.timer}s`, "TIMER"], [cfg.needAuctioneer ? "YES" : "AUTO", "AUCTIONEER"]].map(([v, l]) => (
+          {[[`${cfg.pts}pt`, "PER TEAM"], [`${cfg.pool ? cfg.pool.length : PLAYERS.length}`, "PLAYERS"], [`${cfg.timer}s`, "TIMER"], [cfg.needAuctioneer ? "YES" : "AUTO", "AUCTIONEER"]].map(([v, l]) => (
             <div key={l} style={{ textAlign: "center" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, color: "#fff" }}>{v}</div><div style={{ fontSize: 9, color: "#6b7280", letterSpacing: 2, marginTop: 2 }}>{l}</div></div>
           ))}
         </div>
@@ -859,6 +852,64 @@ export default function App() {
       </div>
     </div>
   );
+
+  /* ════════════════════════════════════════════════════════
+     POOL SELECT (HOST)
+  ════════════════════════════════════════════════════════ */
+  if (phase === "pool_select") {
+    const clubs = [...new Set(PLAYERS.map(p => p.club))].sort();
+    return (
+      <div style={PG}><style>{FONTS + ANIM}</style>
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "28px 16px 120px", display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, position: "sticky", top: 0, background: "#050810", padding: "10px 0", zIndex: 10 }}>
+            <button onClick={() => dispatch({ type: "PATCH", patch: { phase: "config" } })} style={BACK}>← Back</button>
+            <div style={{ fontFamily: F, fontWeight: 800, fontSize: 24, letterSpacing: 2, color: "#fff" }}>MANUAL PLAYER SELECTION</div>
+            <div style={{ marginLeft: "auto", fontSize: 16, fontWeight: "bold", color: "#3b82f6" }}>TOTAL: {cfg.pool ? cfg.pool.length : PLAYERS.length}</div>
+          </div>
+          {clubs.map(c => {
+            const cPlayers = PLAYERS.filter(p => p.club === c);
+            const cSelected = cPlayers.filter(p => (cfg.pool || PLAYERS.map(x=>x.id)).includes(p.id));
+            const isAll = cSelected.length === cPlayers.length;
+            const toggleAll = () => {
+              const curPool = cfg.pool || PLAYERS.map(p=>p.id);
+              if (isAll) {
+                dispatch({ type: "SET_CFG", patch: { pool: curPool.filter(id => !cPlayers.find(p=>p.id === id)) } });
+              } else {
+                const addIds = cPlayers.filter(p => !curPool.includes(p.id)).map(p=>p.id);
+                dispatch({ type: "SET_CFG", patch: { pool: [...curPool, ...addIds] } });
+              }
+            };
+            return (
+              <div key={c} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: 12 }}>
+                  <div style={{ fontSize: 18, fontWeight: "bold", color: "#fff", letterSpacing: 1 }}>{c} <span style={{ fontSize: 12, color: "#6b7280" }}>({cSelected.length}/{cPlayers.length})</span></div>
+                  <button onClick={toggleAll} style={{ background: isAll ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)", color: isAll ? "#ef4444" : "#10b981", border: "none", padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: "bold" }}>
+                    {isAll ? "DESELECT ALL" : "SELECT ALL"}
+                  </button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+                  {cPlayers.map(p => {
+                    const sel = (cfg.pool || PLAYERS.map(x=>x.id)).includes(p.id);
+                    return (
+                      <div key={p.id} onClick={() => {
+                        const curPool = cfg.pool || PLAYERS.map(x=>x.id);
+                        dispatch({ type: "SET_CFG", patch: { pool: sel ? curPool.filter(id => id !== p.id) : [...curPool, p.id] } });
+                      }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px", background: sel ? "rgba(59,130,246,0.1)" : "rgba(255,255,255,0.02)", border: `1px solid ${sel ? "rgba(59,130,246,0.3)" : "rgba(255,255,255,0.05)"}`, borderRadius: 8, cursor: "pointer" }}>
+                        <div style={{ width: 14, height: 14, borderRadius: 3, border: "1px solid #6b7280", background: sel ? "#3b82f6" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                           {sel && <div style={{ width: 8, height: 8, background: "#fff", borderRadius: 1 }} />}
+                        </div>
+                        <div style={{ fontSize: 12, color: sel ? "#fff" : "#9ca3af", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.n}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   /* ════════════════════════════════════════════════════════
      LOBBY WAIT / SETUP
@@ -1022,7 +1073,7 @@ export default function App() {
           </div>
 
           {/* Manual confirm */}
-          <button onClick={() => dispatch({ type: phase === "ra1_pick" ? "CONFIRM_RA1_SELECTION" : "CONFIRM_RA2_SELECTION" })}
+          <button onClick={() => dispatch({ type: "CONFIRM_RA1_SELECTION" })}
             style={{ ...BTN("linear-gradient(135deg,#10b981,#047857)"), padding: "15px", fontSize: 15, letterSpacing: 3, marginTop: 8 }}>
             START REAUCTION ({(pickPool.filter(p => (selVotes[p.id] || []).length > 0)).length} selected)
           </button>
@@ -1096,9 +1147,10 @@ export default function App() {
   );
 
   /* ════════════════════════════════════════════════════════
-     AUCTION ROOM (main + reauction rounds)
+     AUCTION ROOM (main + reauction rounds + results dashboard)
   ════════════════════════════════════════════════════════ */
-  if (!role) return (
+  if (phase === "auction" || isReauction || phase === "results") {
+    if (!role) return (
     <div style={{ ...PG, alignItems: "center", justifyContent: "center" }}><style>{FONTS + ANIM}</style>
       <div style={{ maxWidth: 460, width: "100%", padding: "28px 20px", display: "flex", flexDirection: "column", gap: 16, animation: "cardIn .4s ease" }}>
         <div style={{ textAlign: "center", marginBottom: 4 }}>
@@ -1138,8 +1190,9 @@ export default function App() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0, gap: 8, flexWrap: "wrap", background: "rgba(5,7,14,.97)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, letterSpacing: 1 }}><span style={{ color: "#fff" }}>FC</span><span style={{ color: "#f59e0b" }}>26</span></div>
+          {phase === "results" && <div style={{ padding: "3px 10px", borderRadius: 99, background: "rgba(245,158,11,.12)", border: "1px solid rgba(245,158,11,.3)", fontFamily: F, fontSize: 10, color: "#f59e0b", letterSpacing: 2 }}>🏆 DRAFT COMPLETE</div>}
           {isReauction && <div style={{ padding: "3px 10px", borderRadius: 99, background: "rgba(59,130,246,.12)", border: "1px solid rgba(59,130,246,.3)", fontFamily: F, fontSize: 10, color: "#60a5fa", letterSpacing: 2 }}>🔄 {raPhaseLabel}</div>}
-          {!isReauction && catM && <div style={{ padding: "3px 10px", borderRadius: 99, background: catM.bg, border: `1px solid ${catM.color}33`, fontFamily: F, fontSize: 10, color: catM.color, letterSpacing: 2 }}>{catM.icon} {catM.label}</div>}
+          {!isReauction && phase !== "results" && catM && <div style={{ padding: "3px 10px", borderRadius: 99, background: catM.bg, border: `1px solid ${catM.color}33`, fontFamily: F, fontSize: 10, color: catM.color, letterSpacing: 2 }}>{catM.icon} {catM.label}</div>}
           {role && <div style={{ padding: "3px 10px", borderRadius: 99, background: isAuctioneer ? "rgba(245,158,11,.1)" : "rgba(34,211,238,.08)", border: `1px solid ${isAuctioneer ? "rgba(245,158,11,.25)" : "rgba(34,211,238,.18)"}`, fontFamily: F, fontSize: 10, color: isAuctioneer ? "#f59e0b" : "#22d3ee", letterSpacing: 1 }}>{isAuctioneer ? "🎙️ AUCTIONEER" : `💰 ${teams[bidderIdx]?.team}`}</div>}
           {isR2 && activeTeam && <div style={{ padding: "3px 10px", borderRadius: 99, background: canBidR2 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)", border: `1px solid ${canBidR2 ? "rgba(34,197,94,.3)" : "rgba(239,68,68,.3)"}`, fontFamily: F, fontSize: 10, color: canBidR2 ? "#4ade80" : "#f87171", letterSpacing: 1 }}>{canBidR2 ? "✓ ELIGIBLE" : "✗ NOT ELIGIBLE"}</div>}
         </div>
@@ -1148,14 +1201,14 @@ export default function App() {
             {teams.map((t, i) => <option key={i} value={i} style={{ background: "#0f1117" }}>{t.team} — {t.budget}pt · {t.squad.length}p</option>)}
           </select>}
           {activeTeam && <div style={{ fontFamily: F, fontSize: 14, color: "#f59e0b" }}>{activeTeam.budget}<span style={{ fontSize: 10, color: "#6b7280" }}>pt</span></div>}
-          <div style={{ fontSize: 10, color: "#374151", fontFamily: F }}>{queue.length + 1} left</div>
+          {phase !== "results" && <div style={{ fontSize: 10, color: "#374151", fontFamily: F }}>{queue.length + 1} left</div>}
           <button onClick={() => setRole(null)} style={{ ...BACK, fontSize: 10, padding: "4px 10px" }}>SWITCH ROLE</button>
         </div>
       </div>
 
       {/* TABS */}
       <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0, background: "rgba(5,7,14,.9)" }}>
-        {[["bid", "⚡ BID"], ["list", "📋 LIST"], ["dash", "📊 DASH"], ["squads", "👥 SQUADS"]].map(([k, lb]) => (
+        {(phase === "results" ? [["dash", "📊 DASH"], ["squads", "👥 SQUADS"], ["list", "📋 LIST"]] : [["bid", "⚡ BID"], ["list", "📋 LIST"], ["dash", "📊 DASH"], ["squads", "👥 SQUADS"]]).map(([k, lb]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 0", background: "none", border: "none", fontFamily: F, fontWeight: 600, fontSize: 11, letterSpacing: 2, color: tab === k ? "#f59e0b" : "#4b5563", borderBottom: tab === k ? "2px solid #f59e0b" : "2px solid transparent", cursor: "pointer", transition: "all .2s" }}>{lb}</button>
         ))}
       </div>
@@ -1163,7 +1216,7 @@ export default function App() {
       <div style={{ flex: 1, overflow: "hidden", display: "flex", minHeight: 0 }}>
 
         {/* BID TAB */}
-        {tab === "bid" && (
+        {tab === "bid" && phase !== "results" && (
           <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 100px" }}>
             <div style={{ maxWidth: 440, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
               {isR2 && !canBidR2 && (bidderIdx != null || noAuc) && !isAuctioneer && (
@@ -1174,40 +1227,57 @@ export default function App() {
               )}
               {p && g && (<>
                 {/* FC26 CARD */}
-                <div key={p.id + (current?.uid || 0)} style={{ borderRadius: 24, overflow: "hidden", background: g.bg, border: `1px solid ${g.a}33`, boxShadow: `0 12px 60px ${g.a}12,0 0 0 1px rgba(255,255,255,.04)`, animation: "cardIn .45s cubic-bezier(0.34,1.2,0.64,1)", position: "relative" }}>
-                  <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at 70% -10%,${g.a}15,transparent 55%)`, pointerEvents: "none" }} />
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${g.a}66,transparent)` }} />
-                  {isReauction && <div style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 99, background: "rgba(59,130,246,.2)", border: "1px solid rgba(59,130,246,.4)", fontFamily: F, fontSize: 9, color: "#60a5fa", letterSpacing: 2 }}>🔄 REAUCTION</div>}
-                  <div style={{ position: "relative", display: "flex", minHeight: 210 }}>
-                    <div style={{ width: 70, flexShrink: 0, background: "rgba(0,0,0,.3)", borderRight: `1px solid ${g.a}18`, display: "flex", flexDirection: "column", alignItems: "center", padding: "18px 0 12px", gap: 4 }}>
-                      <div style={{ fontFamily: F, fontWeight: 800, fontSize: 38, color: g.a, lineHeight: 1 }}>{p.r}</div>
-                      <div style={{ fontFamily: F, fontSize: 12, color: g.a, letterSpacing: 2, marginBottom: 8 }}>{p.pos}</div>
+                <div key={p.id + (current?.uid || 0)} style={{ borderRadius: 24, overflow: "hidden", background: g.bg, border: `2px solid ${g.a}44`, boxShadow: `0 15px 70px ${g.a}22, inset 0 0 0 1px rgba(255,255,255,.05)`, animation: "cardIn .45s cubic-bezier(0.34,1.2,0.64,1)", position: "relative" }}>
+                  <div style={{ position: "absolute", inset: 0, background: `radial-gradient(circle at 50% -10%,${g.a}30,transparent 70%)`, pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${g.a}99,transparent)` }} />
+                  {isReauction && <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", padding: "5px 16px", borderRadius: 99, background: "rgba(59,130,246,.25)", border: "1px solid rgba(59,130,246,.5)", fontFamily: F, fontSize: 10, color: "#93c5fd", letterSpacing: 3, zIndex: 10, backdropFilter: "blur(4px)" }}>🔄 REAUCTION</div>}
+                  
+                  <div style={{ position: "relative", padding: "40px 24px 24px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+                    
+                    {/* Header: Rating & Position */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+                      <div style={{ fontFamily: F, fontWeight: 900, fontSize: 56, color: "#fff", textShadow: `0 0 20px ${g.a}` }}>{p.r}</div>
+                      <div style={{ width: 2, height: 40, background: `${g.a}55` }} />
+                      <div style={{ fontFamily: F, fontSize: 24, color: g.a, letterSpacing: 4, fontWeight: 800 }}>{p.pos}</div>
+                    </div>
+                    
+                    {/* Name */}
+                    <div style={{ fontFamily: F, fontWeight: 900, fontSize: 32, color: "#fff", letterSpacing: 1.5, textShadow: "0 4px 15px rgba(0,0,0,0.8)", marginBottom: 8, lineHeight: 1.1 }}>{p.n.toUpperCase()}</div>
+                    
+                    {/* Club & Country */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                      <div style={{ fontSize: 14, color: "#e4e4e7", fontWeight: 700, letterSpacing: 2 }}>{p.club.toUpperCase()}</div>
+                      <div style={{ width: 4, height: 4, borderRadius: 2, background: g.a }} />
+                      <div style={{ fontSize: 20, filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}>{p.nat}</div>
+                    </div>
+
+                    <div style={{ width: "100%", height: 1, background: `linear-gradient(90deg,transparent,${g.a}44,transparent)`, marginBottom: 20 }} />
+
+                    {/* Stats Grid */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px 24px", width: "100%", padding: "0 10px" }}>
                       {[["PAC", p.pac], ["SHO", p.sho], ["PAS", p.pas], ["DRI", p.dri], ["DEF", p.def], ["PHY", p.phy]].map(([k, v]) => (
-                        <div key={k} style={{ textAlign: "center", width: "100%", padding: "2px 0" }}>
-                          <div style={{ fontFamily: F, fontWeight: 700, fontSize: 15, color: v >= 85 ? "#4ade80" : v >= 70 ? "#fbbf24" : "#f87171", lineHeight: 1 }}>{v}</div>
-                          <div style={{ fontSize: 7, color: "#4b5563", letterSpacing: .5 }}>{k}</div>
+                        <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,0,0,0.2)", padding: "8px 12px", borderRadius: 12, border: `1px solid ${g.a}15` }}>
+                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", letterSpacing: 2, fontWeight: 700 }}>{k}</div>
+                          <div style={{ fontFamily: F, fontWeight: 900, fontSize: 18, color: v >= 85 ? "#4ade80" : v >= 70 ? "#fbbf24" : "#f87171", textShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>{v}</div>
                         </div>
                       ))}
                     </div>
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "18px 14px 10px", background: "rgba(0,0,0,.18)" }}><Avatar player={p} size={110} /></div>
-                      <div style={{ padding: "12px 16px 14px", background: "rgba(0,0,0,.32)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontFamily: F, fontWeight: 800, fontSize: 20, color: "#fff", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 155 }}>{p.n}</div>
-                            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 3 }}>{p.club}</div>
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
-                            <div style={{ padding: "2px 8px", borderRadius: 6, background: g.a, fontFamily: F, fontSize: 9, color: g.lc, letterSpacing: 2, fontWeight: 700 }}>{g.lbl}</div>
-                            <div style={{ fontSize: 18 }}>{p.nat}</div>
-                          </div>
+
+                    {/* Footer: Grade Label & Skills */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginTop: 24, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div style={{ padding: "6px 14px", borderRadius: 8, background: `linear-gradient(135deg, ${g.a}, ${g.lc})`, fontFamily: F, fontSize: 11, color: "#000", letterSpacing: 3, fontWeight: 900, boxShadow: `0 4px 15px ${g.a}55` }}>{g.lbl}</div>
+                      <div style={{ display: "flex", gap: 20 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ fontSize: 9, color: "#9ca3af", letterSpacing: 2, fontWeight: 700 }}>SM</div>
+                          <div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= p.sm ? "#fcd34d" : "rgba(255,255,255,0.1)", fontSize: 12, textShadow: i <= p.sm ? "0 0 10px rgba(252,211,77,0.6)" : "none" }}>★</span>)}</div>
                         </div>
-                        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                          <div><div style={{ fontSize: 7, color: "#4b5563", letterSpacing: 1, marginBottom: 2 }}>SKILL</div><div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= p.sm ? g.a : "#1f2937", fontSize: 11 }}>★</span>)}</div></div>
-                          <div><div style={{ fontSize: 7, color: "#4b5563", letterSpacing: 1, marginBottom: 2 }}>WEAK FOOT</div><div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= p.wf ? "#60a5fa" : "#1f2937", fontSize: 11 }}>★</span>)}</div></div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ fontSize: 9, color: "#9ca3af", letterSpacing: 2, fontWeight: 700 }}>WF</div>
+                          <div style={{ display: "flex", gap: 2 }}>{[1, 2, 3, 4, 5].map(i => <span key={i} style={{ color: i <= p.wf ? "#93c5fd" : "rgba(255,255,255,0.1)", fontSize: 12, textShadow: i <= p.wf ? "0 0 10px rgba(147,197,253,0.6)" : "none" }}>★</span>)}</div>
                         </div>
                       </div>
                     </div>
+                    
                   </div>
                 </div>
 
@@ -1231,18 +1301,46 @@ export default function App() {
 
                 {/* SKIP VOTES */}
                 {!isSold && (
-                  <div style={{ background: "rgba(239,68,68,.05)", border: "1px solid rgba(239,68,68,.12)", borderRadius: 14, padding: "10px 14px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <div style={{ fontFamily: F, fontSize: 11, color: "#f87171", letterSpacing: 2 }}>SKIP VOTE ({skipVotes.length}/{teams.length})</div>
-                      <div style={{ fontSize: 9, color: "#4b5563" }}>unanimous = skip</div>
+                  <div style={{ background: "rgba(239,68,68,.05)", border: "1px solid rgba(239,68,68,.12)", borderRadius: 18, padding: "16px", marginTop: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <div style={{ fontFamily: F, fontSize: 12, color: "#f87171", letterSpacing: 3, fontWeight: 700 }}>SKIP VOTES ({skipVotes.length}/{teams.length})</div>
+                      <div style={{ fontSize: 10, color: "#4b5563", letterSpacing: 1 }}>unanimous = skip</div>
                     </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {teams.map((t, i) => {
-                        const voted = skipVotes.includes(i);
-                        const canVote = bidderIdx === i || isAuctioneer || noAuc;
-                        return (<button key={i} onClick={() => { if (canVote) dispatch({ type: "VOTE_SKIP", teamIdx: i }); }} disabled={!canVote} style={{ padding: "5px 12px", borderRadius: 99, background: voted ? "rgba(239,68,68,.18)" : "rgba(255,255,255,.04)", border: `1px solid ${voted ? "rgba(239,68,68,.45)" : "rgba(255,255,255,.09)"}`, color: voted ? "#f87171" : "#6b7280", fontFamily: F, fontSize: 11, cursor: canVote ? "pointer" : "default", letterSpacing: 1, transition: "all .15s" }}>{voted ? "✓ " : ""}{t.team}</button>);
-                      })}
-                    </div>
+                    
+                    {/* Big Skip Button for Bidder */}
+                    {(() => {
+                      const myTeamIdx = bidderIdx ?? (noAuc ? activeTi : null);
+                      if (myTeamIdx == null && !isAuctioneer) return null;
+                      
+                      const voted = myTeamIdx != null && skipVotes.includes(myTeamIdx);
+                      const canVote = myTeamIdx != null && !voted;
+                      
+                      return (
+                        <button 
+                          className="bb" 
+                          onClick={() => { if (canVote) dispatch({ type: "VOTE_SKIP", teamIdx: myTeamIdx }); }} 
+                          disabled={!canVote} 
+                          style={{ 
+                            width: "100%", padding: "18px 0", borderRadius: 14, 
+                            background: voted ? "rgba(239,68,68,.2)" : "linear-gradient(135deg,#ef4444,#b91c1c)", 
+                            border: voted ? "1px solid rgba(239,68,68,.4)" : "none", 
+                            color: voted ? "#fca5a5" : "#fff", fontFamily: F, fontWeight: 900, fontSize: 18, 
+                            cursor: canVote ? "pointer" : (voted ? "default" : "not-allowed"), letterSpacing: 4, boxShadow: voted ? "none" : "0 6px 20px rgba(239,68,68,.3)", transition: "all .2s" 
+                          }}
+                        >
+                          {voted ? "✓ VOTED TO SKIP" : "⏭️ VOTE TO SKIP"}
+                        </button>
+                      );
+                    })()}
+                    
+                    {/* Small badges for who voted */}
+                    {skipVotes.length > 0 && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+                        {skipVotes.map(idx => (
+                           <span key={idx} style={{ padding: "4px 10px", borderRadius: 8, background: "rgba(239,68,68,.15)", border: "1px solid rgba(239,68,68,.3)", color: "#f87171", fontSize: 10, fontFamily: F, letterSpacing: 1 }}>{teams[idx]?.team}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1441,6 +1539,9 @@ export default function App() {
                       </div>
                     );
                   })}
+                  {phase === "results" && isAuctioneer && (
+                    <button onClick={() => dispatch({ type: "RESET" })} style={{ ...BTN("linear-gradient(135deg,#ef4444,#b91c1c)"), padding: "14px", fontSize: 14, letterSpacing: 3, marginTop: 10, width: "100%" }}>RESET AND START NEW DRAFT</button>
+                  )}
                 </div>
               )}
             </div>
@@ -1549,6 +1650,9 @@ export default function App() {
       </div>
     </div>
   );
+  }
+  // Fallback
+  return null;
 }
 
 function CBlock({ title, children }) { return (<div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: "14px 16px" }}><div style={{ fontFamily: F, fontSize: 10, color: "#4b5563", letterSpacing: 3, marginBottom: 10 }}>{title}</div>{children}</div>); }
