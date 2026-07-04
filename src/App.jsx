@@ -5881,8 +5881,8 @@ export default function App() {
 
         {/* BID TAB */}
         {tab === "bid" && phase !== "results" && (
-          <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px 100px" }}>
-            <div style={{ maxWidth: 440, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ flex: 1, overflowY: "hidden", padding: "8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div style={{ maxWidth: 440, width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: 8 }}>
               {isR2 && !canBidR2 && (bidderIdx != null || noAuc) && !isAuctioneer && (
                 <div style={{ padding: "14px 16px", background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 14, textAlign: "center" }}>
                   <div style={{ fontFamily: F, fontWeight: 700, fontSize: 16, color: "#f87171", letterSpacing: 1 }}>⛔ NOT ELIGIBLE FOR ROUND 2</div>
@@ -5897,14 +5897,14 @@ export default function App() {
                   background: "linear-gradient(145deg, #0f172a 0%, #020617 100%)", 
                   border: "1px solid rgba(56, 189, 248, 0.15)",
                   boxShadow: "0 20px 60px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.05), inset 0 0 40px rgba(56,189,248,0.03)",
-                  padding: 14, position: "relative", overflow: "hidden", animation: "cardIn .4s cubic-bezier(0.34,1.2,0.64,1)"
+                  padding: 10, position: "relative", overflow: "hidden", animation: "cardIn .4s cubic-bezier(0.34,1.2,0.64,1)"
                 }}>
                   {/* Subtle top-left glow */}
                   <div style={{ position: "absolute", top: -50, left: -50, width: 150, height: 150, background: "rgba(56, 189, 248, 0.1)", filter: "blur(40px)", borderRadius: "50%" }} />
                   {isReauction && <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", padding: "5px 16px", borderRadius: 99, background: "rgba(59,130,246,.25)", border: "1px solid rgba(59,130,246,.5)", fontFamily: F, fontSize: 10, color: "#93c5fd", letterSpacing: 3, zIndex: 10, backdropFilter: "blur(4px)" }}>🔄 REAUCTION</div>}
                   
                   {/* TOP HEADER */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, position: "relative", zIndex: 2 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, position: "relative", zIndex: 2 }}>
                     
                     {/* Rating & Position */}
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 80 }}>
@@ -5925,10 +5925,10 @@ export default function App() {
                   </div>
 
                   {/* Divider */}
-                  <div style={{ width: "100%", height: 1, background: "linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.2), transparent)", marginBottom: 24 }} />
+                  <div style={{ width: "100%", height: 1, background: "linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.2), transparent)", marginBottom: 12 }} />
 
                   {/* STATS GRID */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, position: "relative", zIndex: 2 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 10, position: "relative", zIndex: 2 }}>
                     {[
                       ["PAC", p.pac], ["SHO", p.sho], ["PAS", p.pas], 
                       ["DRI", p.dri], ["DEF", p.def], ["PHY", p.phy]
@@ -5941,7 +5941,7 @@ export default function App() {
                           boxShadow: "inset 0 2px 10px rgba(0,0,0,0.5)"
                         }}>
                           <div style={{ fontFamily: F, fontSize: 11, color: "#6b7280", fontWeight: 700, letterSpacing: 1 }}>{lbl}</div>
-                          <div style={{ fontFamily: "Impact, sans-serif", fontSize: 32, color: col, fontStyle: "italic", lineHeight: 1.1, margin: "4px 0", textShadow: `0 0 15px ${col}44` }}>{val}</div>
+                          <div style={{ fontFamily: "Impact, sans-serif", fontSize: 26, color: col, fontStyle: "italic", lineHeight: 1.1, margin: "2px 0", textShadow: `0 0 15px ${col}44` }}>{val}</div>
                           <div style={{ width: "60%", height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 99, marginTop: 4, overflow: "hidden" }}>
                             <div style={{ width: `${val}%`, height: "100%", background: col, boxShadow: `0 0 8px ${col}`, borderRadius: 99 }} />
                           </div>
@@ -5978,7 +5978,7 @@ export default function App() {
                 </div>
 
                 {/* TIMER + BID */}
-                <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: "12px 14px", display: "flex", gap: 14, alignItems: "center" }}>
+                <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 14, padding: "8px 12px", display: "flex", gap: 12, alignItems: "center" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
                     <svg width={R * 2 + 18} height={R * 2 + 18} style={{ transform: "rotate(-90deg)" }}>
                       <circle cx={R + 9} cy={R + 9} r={R} fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="5" />
@@ -5990,7 +5990,7 @@ export default function App() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 9, color: "#4b5563", letterSpacing: 3, fontFamily: F, marginBottom: 4 }}>{isSold ? (current.status === "sold" ? "SOLD!" : "SKIPPED") : "CURRENT BID"}</div>
-                    <div style={{ fontFamily: F, fontWeight: 800, fontSize: 52, color: "#fff", lineHeight: 1 }}>{current?.bid ?? 1}<span style={{ fontSize: 15, color: "#4b5563", fontWeight: 400 }}> pt</span></div>
+                    <div style={{ fontFamily: F, fontWeight: 800, fontSize: 42, color: "#fff", lineHeight: 1 }}>{current?.bid ?? 1}<span style={{ fontSize: 13, color: "#4b5563", fontWeight: 400 }}> pt</span></div>
                     {current?.bidderIdx != null ? <div style={{ fontSize: 13, color: "#06b6d4", marginTop: 4 }}>🏆 {teams[current.bidderIdx]?.team}</div> : <div style={{ fontSize: 12, color: "#374151", marginTop: 4 }}>No bids yet</div>}
                   </div>
                 </div>
@@ -6071,7 +6071,7 @@ export default function App() {
                 {/* BIDDER CONTROLS */}
                 {(bidderIdx != null || noAuc) && !isSold && !isAuctioneer && (!isR2 || canBidR2) && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                    {isR2 && <div style={{ padding: "8px 12px", background: "rgba(34,197,94,.06)", border: "1px solid rgba(34,197,94,.2)", borderRadius: 10, fontSize: 11, color: "#4ade80", fontFamily: F, letterSpacing: 1, textAlign: "center" }}>✓ ELIGIBLE — {activeTeam?.squad?.length}/14 players</div>}
+                    {isR2 && <div style={{ padding: "8px 12px", background: "rgba(34,197,94,.06)", border: "1px solid rgba(34,197,94,.2)", borderRadius: 10, fontSize: 11, color: "#4ade80", fontFamily: F, letterSpacing: 1, textAlign: "center" }}>✓ ELIGIBLE — {activeTeam?.squad?.length}/25 players</div>}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
                       {[1, 2, 5].map(inc => { const nxt = (current?.bid || 0) + inc, can = nxt <= (activeTeam?.budget || 0) && (activeTeam?.squad?.length || 0) < 25; return (<button key={inc} className="bb" onClick={() => { audio.bid(); bidInc(inc, isR2); }} disabled={!can} style={{ padding: "12px 0", borderRadius: 10, background: can ? "linear-gradient(135deg,#3b82f6,#1d4ed8)" : "rgba(255,255,255,.04)", color: can ? "#fff" : "#2d3748", fontFamily: F, fontWeight: 700, fontSize: 16, border: "none", cursor: can ? "pointer" : "not-allowed", letterSpacing: 1 }}>+{inc}</button>); })}
                     </div>
