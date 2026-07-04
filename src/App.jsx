@@ -701,6 +701,19 @@ export default function App() {
                 </div>
               </div>
             )}
+            
+            <div style={{ marginTop: 40, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 20 }}>
+              {adminUser ? (
+                <div style={{ color: "#9ca3af", fontSize: 13, textAlign: "center" }}>
+                  Logged in as Admin ({adminUser.email}) 
+                  <button onClick={() => supabase.auth.signOut()} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", marginLeft: 10, textDecoration: "underline" }}>Logout</button>
+                </div>
+              ) : (
+                <button onClick={() => setRAction("admin_login")} style={{ width: "100%", background: "none", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", padding: "12px", borderRadius: "8px", fontSize: 14 }}>
+                  🔑 Admin Login
+                </button>
+              )}
+            </div>
           </div>
         ) : rAction === "admin_login" ? (
           <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 14 }}>
