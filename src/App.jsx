@@ -4803,9 +4803,9 @@ const F = "'Barlow Condensed',system-ui,sans-serif";
 const REAUCTION_SELECT_SECS = 60;
 
 function cardGrade(r, cat) {
-  if (cat.startsWith("M") || r >= 84) return { a: "#fbbf24", bg: "linear-gradient(155deg,#eab308,#854d0e)", lbl: "GOLD", lc: "#000" };
-  if (r >= 75) return { a: "#cbd5e1", bg: "linear-gradient(155deg,#94a3b8,#475569)", lbl: "SILVER", lc: "#000" };
-  return { a: "#0891b2", bg: "linear-gradient(155deg,#b45309,#78350f)", lbl: "BRONZE", lc: "#fff" };
+  if (cat.startsWith("M") || r >= 84) return { a: "#06b6d4", bg: "linear-gradient(155deg,#083344,#164e63)", lbl: "ELITE", lc: "#fff" };
+  if (r >= 75) return { a: "#67e8f9", bg: "linear-gradient(155deg,#164e63,#0f172a)", lbl: "PRO", lc: "#fff" };
+  return { a: "#94a3b8", bg: "linear-gradient(155deg,#0f172a,#020617)", lbl: "BASE", lc: "#fff" };
 }
 
 function Avatar({ player, size = 80 }) {
@@ -5301,17 +5301,6 @@ export default function App() {
             )}
             
             <div style={{ marginTop: 40, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 20, display: "flex", flexDirection: "column", gap: 12 }}>
-              {adminUser ? (
-                <div style={{ color: "#9ca3af", fontSize: 13, textAlign: "center" }}>
-                  Logged in as Admin ({adminUser.email}) 
-                  <button onClick={() => supabase.auth.signOut()} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", marginLeft: 10, textDecoration: "underline" }}>Logout</button>
-                </div>
-              ) : (
-                <button onClick={() => setRAction("admin_login")} style={{ width: "100%", background: "none", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", padding: "12px", borderRadius: "8px", fontSize: 14 }}>
-                  🔑 Admin Login
-                </button>
-              )}
-              
               <button onClick={() => {
                 localStorage.clear();
                 sessionStorage.clear();
@@ -5320,20 +5309,6 @@ export default function App() {
                 🧹 Clear App Cache & Reload
               </button>
             </div>
-          </div>
-        ) : rAction === "admin_login" ? (
-          <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ fontFamily: F, fontWeight: 800, fontSize: 22, color: "#fff", letterSpacing: 2 }}>ADMIN LOGIN</div>
-            <input value={myName} onChange={e => setMyName(e.target.value)} placeholder="Email" type="email" style={{ ...INP, fontFamily: F, fontSize: 14 }} />
-            <input value={myTeamN} onChange={e => setMyTeamN(e.target.value)} placeholder="Password" type="password" style={{ ...INP, fontFamily: F, fontSize: 14 }} />
-            <button onClick={async () => {
-              if (!myName.trim() || !myTeamN.trim()) { flash("Enter email and password"); return; }
-              const { error } = await supabase.auth.signInWithPassword({ email: myName, password: myTeamN });
-              if (error) setErr(error.message);
-              else { setErr(""); setRAction(null); }
-            }} style={{ ...BTN("linear-gradient(135deg,#06b6d4,#0891b2)"), padding: "16px", fontSize: 15, letterSpacing: 3, color: "#000", fontWeight: 800 }}>LOGIN →</button>
-            {err && <div style={{ color: "#f87171", fontSize: 12, textAlign: "center" }}>{err}</div>}
-            <button onClick={() => setRAction(null)} style={BACK}>← Back</button>
           </div>
         ) : rAction === "create" ? (
           <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -5872,7 +5847,7 @@ export default function App() {
 
         {/* BID TAB */}
         {tab === "bid" && phase !== "results" && (
-          <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 100px" }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px 100px" }}>
             <div style={{ maxWidth: 440, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
               {isR2 && !canBidR2 && (bidderIdx != null || noAuc) && !isAuctioneer && (
                 <div style={{ padding: "14px 16px", background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 14, textAlign: "center" }}>
@@ -5884,11 +5859,11 @@ export default function App() {
                 
                 {/* FC26 CARD */}
                 <div key={p.id + (current?.uid || 0)} style={{ 
-                  width: "100%", maxWidth: 360, margin: "0 auto 16px", borderRadius: 20, 
+                  width: "100%", maxWidth: 360, margin: "0 auto 16px", borderRadius: 16, 
                   background: "linear-gradient(145deg, #0f172a 0%, #020617 100%)", 
                   border: "1px solid rgba(56, 189, 248, 0.15)",
                   boxShadow: "0 20px 60px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.05), inset 0 0 40px rgba(56,189,248,0.03)",
-                  padding: 24, position: "relative", overflow: "hidden", animation: "cardIn .4s cubic-bezier(0.34,1.2,0.64,1)"
+                  padding: 14, position: "relative", overflow: "hidden", animation: "cardIn .4s cubic-bezier(0.34,1.2,0.64,1)"
                 }}>
                   {/* Subtle top-left glow */}
                   <div style={{ position: "absolute", top: -50, left: -50, width: 150, height: 150, background: "rgba(56, 189, 248, 0.1)", filter: "blur(40px)", borderRadius: "50%" }} />
@@ -5919,7 +5894,7 @@ export default function App() {
                   <div style={{ width: "100%", height: 1, background: "linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.2), transparent)", marginBottom: 24 }} />
 
                   {/* STATS GRID */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24, position: "relative", zIndex: 2 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, position: "relative", zIndex: 2 }}>
                     {[
                       ["PAC", p.pac], ["SHO", p.sho], ["PAS", p.pas], 
                       ["DRI", p.dri], ["DEF", p.def], ["PHY", p.phy]
@@ -5928,7 +5903,7 @@ export default function App() {
                       return (
                         <div key={lbl} style={{ 
                           background: "rgba(15, 23, 42, 0.6)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.03)", 
-                          padding: "12px 0", display: "flex", flexDirection: "column", alignItems: "center",
+                          padding: "6px 0", display: "flex", flexDirection: "column", alignItems: "center",
                           boxShadow: "inset 0 2px 10px rgba(0,0,0,0.5)"
                         }}>
                           <div style={{ fontFamily: F, fontSize: 11, color: "#6b7280", fontWeight: 700, letterSpacing: 1 }}>{lbl}</div>
@@ -5969,7 +5944,7 @@ export default function App() {
                 </div>
 
                 {/* TIMER + BID */}
-                <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 20, padding: "18px 20px", display: "flex", gap: 18, alignItems: "center" }}>
+                <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 16, padding: "12px 14px", display: "flex", gap: 14, alignItems: "center" }}>
                   <div style={{ position: "relative", flexShrink: 0 }}>
                     <svg width={R * 2 + 18} height={R * 2 + 18} style={{ transform: "rotate(-90deg)" }}>
                       <circle cx={R + 9} cy={R + 9} r={R} fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="5" />
@@ -6063,12 +6038,8 @@ export default function App() {
                 {(bidderIdx != null || noAuc) && !isSold && !isAuctioneer && (!isR2 || canBidR2) && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                     {isR2 && <div style={{ padding: "8px 12px", background: "rgba(34,197,94,.06)", border: "1px solid rgba(34,197,94,.2)", borderRadius: 10, fontSize: 11, color: "#4ade80", fontFamily: F, letterSpacing: 1, textAlign: "center" }}>✓ ELIGIBLE — {activeTeam?.squad?.length}/14 players</div>}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-                      {[1, 2, 5, 10].map(inc => { const nxt = (current?.bid || 0) + inc, can = nxt <= (activeTeam?.budget || 0) && (activeTeam?.squad?.length || 0) < 20; return (<button key={inc} className="bb" onClick={() => bidInc(inc, isR2)} disabled={!can} style={{ padding: "15px 0", borderRadius: 14, background: can ? "linear-gradient(135deg,#3b82f6,#1d4ed8)" : "rgba(255,255,255,.04)", color: can ? "#fff" : "#2d3748", fontFamily: F, fontWeight: 700, fontSize: 17, border: "none", cursor: can ? "pointer" : "not-allowed", letterSpacing: 1 }}>+{inc}</button>); })}
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
-                      {[20, 50].map(inc => { const nxt = (current?.bid || 0) + inc, can = nxt <= (activeTeam?.budget || 0) && (activeTeam?.squad?.length || 0) < 20; return (<button key={inc} className="bb" onClick={() => bidInc(inc, isR2)} disabled={!can} style={{ padding: "13px 0", borderRadius: 14, background: can ? "linear-gradient(135deg,#7c3aed,#6d28d9)" : "rgba(255,255,255,.04)", color: can ? "#fff" : "#2d3748", fontFamily: F, fontWeight: 700, fontSize: 14, border: "none", cursor: can ? "pointer" : "not-allowed" }}>+{inc}→{nxt}pt</button>); })}
-                      {(() => { const b = activeTeam?.budget || 0, can = b > 0 && (activeTeam?.squad?.length || 0) < 20 && b > (current?.bid || 0); return (<button className="bb" onClick={() => bidAll(isR2)} disabled={!can} style={{ padding: "13px 0", borderRadius: 14, background: can ? "linear-gradient(135deg,#dc2626,#991b1b)" : "rgba(255,255,255,.04)", color: can ? "#fff" : "#2d3748", fontFamily: F, fontWeight: 700, fontSize: 11, border: "none", cursor: can ? "pointer" : "not-allowed", lineHeight: 1.4 }}>ALL IN<br /><span style={{ fontSize: 9 }}>{b}pt</span></button>); })()}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
+                      {[1, 2, 5].map(inc => { const nxt = (current?.bid || 0) + inc, can = nxt <= (activeTeam?.budget || 0) && (activeTeam?.squad?.length || 0) < 20; return (<button key={inc} className="bb" onClick={() => { audio.bid(); bidInc(inc, isR2); }} disabled={!can} style={{ padding: "12px 0", borderRadius: 10, background: can ? "linear-gradient(135deg,#3b82f6,#1d4ed8)" : "rgba(255,255,255,.04)", color: can ? "#fff" : "#2d3748", fontFamily: F, fontWeight: 700, fontSize: 16, border: "none", cursor: can ? "pointer" : "not-allowed", letterSpacing: 1 }}>+{inc}</button>); })}
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <input className="ti" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/, ""))} onKeyDown={e => { if (e.key === "Enter") bidCustom(isR2); }} placeholder="Custom amount…" type="number" min="1" style={{ ...INP, flex: 1, fontFamily: F, fontSize: 20, textAlign: "center", padding: "13px", letterSpacing: 1 }} />
@@ -6327,13 +6298,7 @@ export default function App() {
           </div>
         )}
 
-        <div style={{ position: "absolute", bottom: 20, right: 20, opacity: 0.5 }}>
-          {adminUser ? (
-             <div style={{color:"#fff", fontSize: 12}}>Admin <button onClick={() => supabase.auth.signOut()} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",marginLeft:10}}>Logout</button></div>
-          ) : (
-             <button onClick={() => setRAction("admin_login")} style={{background:"none",border:"none",color:"#fff",cursor:"pointer",fontSize: 12}}>Admin Login</button>
-          )}
-        </div>
+        {/* Admin footer removed */}
       </div>
     </div>
   );
