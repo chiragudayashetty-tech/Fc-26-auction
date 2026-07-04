@@ -4917,7 +4917,7 @@ function reducer(s, a) {
       return {
         ...s, teams, queue: rest, history: [], skipVotes: [], formSlots: {}, unsoldPool: [], ra1Unsold: [], selVotes: {},
         phase: "auction",
-        current: { uid: Date.now(), player: first, bid: 1, bidderIdx: null, timerEnd: Date.now() + a.cfg.timer * 1000, status: "active" }
+        current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + a.cfg.timer * 1000, status: "active" }
       };
     }
 
@@ -4963,12 +4963,27 @@ function reducer(s, a) {
       if (!cur || cur.status !== "active") return s;
       const already = s.skipVotes.includes(a.teamIdx);
       const votes = already ? s.skipVotes.filter(v => v !== a.teamIdx) : [...s.skipVotes, a.teamIdx];
-      if (votes.length >= s.teams.length) {
-        const unsoldPool = [...s.unsoldPool, cur.player];
-        return {
-          ...s, unsoldPool, current: { ...cur, status: "skipped" }, skipVotes: [],
-          history: [{ player: cur.player, bidderIdx: null, price: 0, skipped: true, ts: Date.now() }, ...s.history].slice(0, 120)
-        };
+      
+      const requiredVotes = s.teams.length - (cur.bidderIdx !== null ? 1 : 0);
+      if (votes.length >= requiredVotes) {
+        if (cur.bidderIdx !== null) {
+          const { bidderIdx, bid, player } = cur;
+          const teams = s.teams.map((t, i) => {
+            if (i !== bidderIdx) return t;
+            return { ...t, budget: t.budget - bid, squad: [...t.squad, { ...player, price: bid, uid: `${player.id}-${Date.now()}-${Math.random()}` }] };
+          });
+          return {
+            ...s, teams, skipVotes: [],
+            current: { ...cur, status: "sold" },
+            history: [{ player, bidderIdx, price: bid, ts: Date.now() }, ...s.history].slice(0, 120)
+          };
+        } else {
+          const unsoldPool = [...s.unsoldPool, cur.player];
+          return {
+            ...s, unsoldPool, current: { ...cur, status: "skipped" }, skipVotes: [],
+            history: [{ player: cur.player, bidderIdx: null, price: 0, skipped: true, ts: Date.now() }, ...s.history].slice(0, 120)
+          };
+        }
       }
       return { ...s, skipVotes: votes };
     }
@@ -4991,7 +5006,7 @@ function reducer(s, a) {
       if (showBanner) return { ...s, queue: rest, banner: next.cat, current: null, _nextPlayer: next };
       return {
         ...s, queue: rest, banner: null,
-        current: { uid: Date.now(), player: next, bid: 1, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
+        current: { uid: Date.now(), player: next, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
       };
     }
 
@@ -5000,7 +5015,7 @@ function reducer(s, a) {
       if (!next) return { ...s, banner: null };
       return {
         ...s, banner: null, _nextPlayer: undefined,
-        current: { uid: Date.now(), player: next, bid: 1, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
+        current: { uid: Date.now(), player: next, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
       };
     }
 
@@ -5023,7 +5038,7 @@ function reducer(s, a) {
       return {
         ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {},
         raPhaseLabel: "REAUCTION — ROUND 1",
-        current: { uid: Date.now(), player: first, bid: 1, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
+        current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
       };
     }
 
@@ -5035,7 +5050,7 @@ function reducer(s, a) {
       return {
         ...s, phase: "ra2_auction", queue: rest, selVotes: {},
         raPhaseLabel: "REAUCTION — ROUND 2 (SMALL SQUADS)",
-        current: { uid: Date.now(), player: first, bid: 1, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
+        current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
       };
     }
 
