@@ -5881,8 +5881,8 @@ export default function App() {
 
         {/* BID TAB */}
         {tab === "bid" && phase !== "results" && (
-          <div style={{ flex: 1, overflowY: "hidden", padding: "8px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <div style={{ maxWidth: 440, width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px 16px", display: "flex", flexDirection: "column" }}>
+            <div style={{ maxWidth: 440, width: "100%", margin: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
               {isR2 && !canBidR2 && (bidderIdx != null || noAuc) && !isAuctioneer && (
                 <div style={{ padding: "14px 16px", background: "rgba(239,68,68,.08)", border: "1px solid rgba(239,68,68,.25)", borderRadius: 14, textAlign: "center" }}>
                   <div style={{ fontFamily: F, fontWeight: 700, fontSize: 16, color: "#f87171", letterSpacing: 1 }}>⛔ NOT ELIGIBLE FOR ROUND 2</div>
@@ -5997,8 +5997,8 @@ export default function App() {
 
                 {/* SKIP VOTES */}
                 {!isSold && (
-                  <div style={{ background: "rgba(239,68,68,.05)", border: "1px solid rgba(239,68,68,.12)", borderRadius: 18, padding: "16px", marginTop: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <div style={{ background: "rgba(239,68,68,.05)", border: "1px solid rgba(239,68,68,.12)", borderRadius: 14, padding: "10px", marginTop: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                       <div style={{ fontFamily: F, fontSize: 12, color: "#f87171", letterSpacing: 3, fontWeight: 700 }}>SKIP VOTES ({skipVotes.length}/{teams.length - (current?.bidderIdx != null ? 1 : 0)} REQUIRED)</div>
                       <div style={{ fontSize: 10, color: "#4b5563", letterSpacing: 1 }}>unanimous = skip</div>
                     </div>
@@ -6017,11 +6017,11 @@ export default function App() {
                           onClick={() => { if (canVote) dispatch({ type: "VOTE_SKIP", teamIdx: myTeamIdx }); }} 
                           disabled={!canVote} 
                           style={{ 
-                            width: "100%", padding: "18px 0", borderRadius: 14, 
+                            width: "100%", padding: "10px 0", borderRadius: 10, 
                             background: voted ? "rgba(239,68,68,.2)" : "linear-gradient(135deg,#ef4444,#b91c1c)", 
                             border: voted ? "1px solid rgba(239,68,68,.4)" : "none", 
-                            color: voted ? "#fca5a5" : "#fff", fontFamily: F, fontWeight: 900, fontSize: 18, 
-                            cursor: canVote ? "pointer" : (voted ? "default" : "not-allowed"), letterSpacing: 4, boxShadow: voted ? "none" : "0 6px 20px rgba(239,68,68,.3)", transition: "all .2s" 
+                            color: voted ? "#fca5a5" : "#fff", fontFamily: F, fontWeight: 900, fontSize: 14, 
+                            cursor: canVote ? "pointer" : (voted ? "default" : "not-allowed"), letterSpacing: 2, boxShadow: voted ? "none" : "0 4px 15px rgba(239,68,68,.3)", transition: "all .2s" 
                           }}
                         >
                           {myTeamIdx === current?.bidderIdx ? "🏆 WINNING BID" : voted ? "✓ VOTED TO SKIP" : "⏭️ VOTE TO SKIP"}
@@ -6073,11 +6073,11 @@ export default function App() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                     {isR2 && <div style={{ padding: "8px 12px", background: "rgba(34,197,94,.06)", border: "1px solid rgba(34,197,94,.2)", borderRadius: 10, fontSize: 11, color: "#4ade80", fontFamily: F, letterSpacing: 1, textAlign: "center" }}>✓ ELIGIBLE — {activeTeam?.squad?.length}/25 players</div>}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
-                      {[1, 2, 5].map(inc => { const nxt = (current?.bid || 0) + inc, can = nxt <= (activeTeam?.budget || 0) && (activeTeam?.squad?.length || 0) < 25; return (<button key={inc} className="bb" onClick={() => { audio.bid(); bidInc(inc, isR2); }} disabled={!can} style={{ padding: "12px 0", borderRadius: 10, background: can ? "linear-gradient(135deg,#3b82f6,#1d4ed8)" : "rgba(255,255,255,.04)", color: can ? "#fff" : "#2d3748", fontFamily: F, fontWeight: 700, fontSize: 16, border: "none", cursor: can ? "pointer" : "not-allowed", letterSpacing: 1 }}>+{inc}</button>); })}
+                      {[1, 2, 5].map(inc => { const nxt = (current?.bid || 0) + inc, can = nxt <= (activeTeam?.budget || 0) && (activeTeam?.squad?.length || 0) < 25; return (<button key={inc} className="bb" onClick={() => { audio.bid(); bidInc(inc, isR2); }} disabled={!can} style={{ padding: "10px 0", borderRadius: 10, background: can ? "linear-gradient(135deg,#3b82f6,#1d4ed8)" : "rgba(255,255,255,.04)", color: can ? "#fff" : "#2d3748", fontFamily: F, fontWeight: 700, fontSize: 14, border: "none", cursor: can ? "pointer" : "not-allowed", letterSpacing: 1 }}>+{inc}</button>); })}
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <input className="ti" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/, ""))} onKeyDown={e => { if (e.key === "Enter") bidCustom(isR2); }} placeholder="Custom amount…" type="number" min="1" style={{ ...INP, flex: 1, fontFamily: F, fontSize: 20, textAlign: "center", padding: "13px", letterSpacing: 1 }} />
-                      <button className="bb" onClick={() => { audio.bid(); bidCustom(isR2); }} style={{ padding: "13px 20px", borderRadius: 14, background: "linear-gradient(135deg,#06b6d4,#0891b2)", border: "none", color: "#000", fontFamily: F, fontWeight: 800, fontSize: 14, cursor: "pointer", letterSpacing: 2, flexShrink: 0 }}>BID</button>
+                      <input className="ti" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/, ""))} onKeyDown={e => { if (e.key === "Enter") bidCustom(isR2); }} placeholder="Custom amount…" type="number" min="1" style={{ ...INP, flex: 1, fontFamily: F, fontSize: 16, textAlign: "center", padding: "10px", letterSpacing: 1 }} />
+                      <button className="bb" onClick={() => { audio.bid(); bidCustom(isR2); }} style={{ padding: "10px 16px", borderRadius: 12, background: "linear-gradient(135deg,#06b6d4,#0891b2)", border: "none", color: "#000", fontFamily: F, fontWeight: 800, fontSize: 13, cursor: "pointer", letterSpacing: 2, flexShrink: 0 }}>BID</button>
                     </div>
                     {err && <div style={{ textAlign: "center", color: "#f87171", fontSize: 12, padding: "9px", background: "rgba(239,68,68,.08)", borderRadius: 10, border: "1px solid rgba(239,68,68,.18)", animation: "fadeIn .2s", fontFamily: F, letterSpacing: 1 }}>{err}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#4b5563", padding: "0 2px" }}>
