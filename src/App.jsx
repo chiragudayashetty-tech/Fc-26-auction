@@ -5029,9 +5029,6 @@ function reducer(s, a) {
         }
         // End of reauction round 1
         if (s.phase === "ra1_auction") {
-          if (s.ra1Unsold && s.ra1Unsold.length > 0) {
-            return { ...s, phase: "ra2_pick", selVotes: {}, selTimerEnd: Date.now() + 60000 };
-          }
           return { ...s, phase: "results", current: null };
         }
         return { ...s, phase: "results" };
@@ -5073,26 +5070,17 @@ function reducer(s, a) {
       if (s.startRaVotes && s.startRaVotes.includes(a.teamIdx)) return s;
       const v = [...(s.startRaVotes || []), a.teamIdx];
       if (v.length >= s.teams.length) {
-         if (s.phase === "ra1_pick") {
-            const reaucQueue = s.unsoldPool.filter(p => (s.selVotes[p.id] || []).length > 0);
-            const ra1Unsold = s.unsoldPool.filter(p => !(s.selVotes[p.id] || []).length);
-            if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {}, startRaVotes: [] };
-            const [first, ...rest] = reaucQueue;
-            return {
-              ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {}, startRaVotes: [],
-              raPhaseLabel: "REAUCTION — ROUND 1",
-              current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
-            };
-         } else {
-            const reaucQueue = s.ra1Unsold.filter(p => (s.selVotes[p.id] || []).length > 0);
-            if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {}, startRaVotes: [] };
-            const [first, ...rest] = reaucQueue;
-            return {
-              ...s, phase: "ra2_auction", queue: rest, selVotes: {}, startRaVotes: [],
-              raPhaseLabel: "REAUCTION — ROUND 2 (SMALL SQUADS)",
-              current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
-            };
-         }
+         const reaucQueue = s.unsoldPool.filter(p => (s.selVotes[p.id] || []).length > 0);
+         const ra1Unsold = s.unsoldPool.filter(p => !(s.selVotes[p.id] || []).length);
+         if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {}, startRaVotes: [] };
+         const [first, ...rest] = reaucQueue;
+         const eliminated = s.teams.map((t, i) => (t.budget <= 0 || t.squad.length >= 25) ? i : -1).filter(i => i !== -1);
+         return {
+           ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {}, startRaVotes: [],
+           raPhaseLabel: "REAUCTION — ROUND 1",
+           current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" },
+           skipVotes: eliminated
+         };
       }
       return { ...s, startRaVotes: v };
     }
@@ -5108,18 +5096,6 @@ function reducer(s, a) {
         raPhaseLabel: "REAUCTION — ROUND 1",
         current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" },
         skipVotes: eliminated
-      };
-    }
-
-    case "CONFIRM_RA2_SELECTION": {
-      const reaucQueue = s.ra1Unsold.filter(p => (s.selVotes[p.id] || []).length > 0);
-      if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {}, startRaVotes: [] };
-      // Round 2: only teams with <25 players can bid
-      const [first, ...rest] = reaucQueue;
-      return {
-        ...s, phase: "ra2_auction", queue: rest, selVotes: {}, startRaVotes: [],
-        raPhaseLabel: "REAUCTION — ROUND 2 (SMALL SQUADS)",
-        current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
       };
     }
 
@@ -5224,7 +5200,7 @@ export default function App() {
   /* ── Selection phase countdown ── */
   useEffect(() => {
     clearInterval(selIntervalRef.current);
-    if (phase !== "ra1_pick" && phase !== "ra2_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
+    if (phase !== "ra1_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
     setSelSecs(REAUCTION_SELECT_SECS);
     const end = Date.now() + REAUCTION_SELECT_SECS * 1000;
     selIntervalRef.current = setInterval(() => {
@@ -5232,7 +5208,7 @@ export default function App() {
       setSelSecs(rem);
       if (rem <= 0) {
         clearInterval(selIntervalRef.current);
-        dispatch({ type: phase === "ra1_pick" ? "CONFIRM_RA1_SELECTION" : "CONFIRM_RA2_SELECTION" });
+        dispatch({ type: "CONFIRM_RA1_SELECTION" });
       }
     }, 250);
     return () => clearInterval(selIntervalRef.current);
@@ -5289,8 +5265,8 @@ export default function App() {
   const isReauction = phase === "ra1_auction";
   const isR2 = isReauction;
   const canBidR2 = activeTeam && activeTeam.squad.length < 25;
-  const isPickPhase = phase === "ra1_pick" || phase === "ra2_pick";
-  const pickPool = phase === "ra2_pick" ? (ra1Unsold || []) : unsoldPool;
+  const isPickPhase = phase === "ra1_pick";
+  const pickPool = unsoldPool;
 
   /* ════════════════════════════════════════════════════════
      LOBBY
@@ -5662,10 +5638,8 @@ export default function App() {
   if (isPickPhase) {
     const selTimerPct = selSecs / REAUCTION_SELECT_SECS;
     const selCol = selSecs <= 5 ? "#ef4444" : selSecs <= 12 ? "#f97316" : "#22c55e";
-    const label = phase === "ra1_pick" ? "ROUND 1 REAUCTION — VOTE PLAYERS" : "ROUND 2 REAUCTION — SMALL SQUADS ONLY";
-    const sub = phase === "ra1_pick"
-      ? `${pickPool.length} unsold players — vote which ones to re-auction. Any player with at least 1 vote goes back up.`
-      : `${pickPool.length} still unsold. Only teams with under 25 players may bid in this round.`;
+    const label = "REAUCTION — VOTE PLAYERS";
+    const sub = `${pickPool.length} unsold players — vote which ones to re-auction. Any player with at least 1 vote goes back up.`;
     return (
       <div style={PG}><style>{FONTS + ANIM}</style>
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px 80px", display: "flex", flexDirection: "column", gap: 14 }}>
