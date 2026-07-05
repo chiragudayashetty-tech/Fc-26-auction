@@ -4967,8 +4967,9 @@ function reducer(s, a) {
         return { ...t, budget: t.budget - bid, squad: [...t.squad, { ...player, price: bid, uid: `${player.id}-${Date.now()}-${Math.random()}` }] };
       }) : s.teams;
       const unsoldPool = bidderIdx == null ? [...s.unsoldPool, player] : s.unsoldPool;
+      const ra1Unsold = (s.phase === "ra1_auction" && bidderIdx == null) ? [...(s.ra1Unsold || []), player] : (s.ra1Unsold || []);
       return {
-        ...s, teams, unsoldPool, skipVotes: [],
+        ...s, teams, unsoldPool, ra1Unsold, skipVotes: [],
         current: { ...cur, status: "sold" },
         history: [{ player, bidderIdx, price: bid, ts: Date.now() }, ...s.history].slice(0, 125)
       };
@@ -4978,8 +4979,9 @@ function reducer(s, a) {
       const cur = s.current;
       if (!cur || cur.status !== "active") return s;
       const unsoldPool = [...s.unsoldPool, cur.player];
+      const ra1Unsold = s.phase === "ra1_auction" ? [...(s.ra1Unsold || []), cur.player] : (s.ra1Unsold || []);
       return {
-        ...s, unsoldPool, current: { ...cur, status: "skipped" }, skipVotes: [],
+        ...s, unsoldPool, ra1Unsold, current: { ...cur, status: "skipped" }, skipVotes: [],
         history: [{ player: cur.player, bidderIdx: null, price: 0, skipped: true, ts: Date.now() }, ...s.history].slice(0, 125)
       };
     }
@@ -5005,8 +5007,9 @@ function reducer(s, a) {
           };
         } else {
           const unsoldPool = [...s.unsoldPool, cur.player];
+          const ra1Unsold = s.phase === "ra1_auction" ? [...(s.ra1Unsold || []), cur.player] : (s.ra1Unsold || []);
           return {
-            ...s, unsoldPool, current: { ...cur, status: "skipped" }, skipVotes: [],
+            ...s, unsoldPool, ra1Unsold, current: { ...cur, status: "skipped" }, skipVotes: [],
             history: [{ player: cur.player, bidderIdx: null, price: 0, skipped: true, ts: Date.now() }, ...s.history].slice(0, 125)
           };
         }
@@ -5022,6 +5025,9 @@ function reducer(s, a) {
         }
         // End of reauction round 1
         if (s.phase === "ra1_auction") {
+          if (s.ra1Unsold && s.ra1Unsold.length > 0) {
+            return { ...s, phase: "ra2_pick", selVotes: {}, selTimerEnd: Date.now() + 60000 };
+          }
           return { ...s, phase: "results", current: null };
         }
         return { ...s, phase: "results" };
@@ -5865,7 +5871,7 @@ export default function App() {
 
   return (
     <div style={{ ...PG, height: "100dvh", overflow: "hidden" }}>
-      <style>{FONTS + ANIM + `.bb:hover{filter:brightness(1.15);transform:translateY(-2px)}.bb:active{transform:scale(.96)}.ti:focus{outline:none;border-color:#3b82f6!important;box-shadow:0 0 0 3px rgba(59,130,246,.1)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:99px}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}`}</style>
+      <style>{FONTS + ANIM + `.bb:hover{filter:brightness(1.15);transform:translateY(-2px)}.bb:active{transform:scale(.96)}.ti:focus{outline:none;border-color:#3b82f6!important;box-shadow:0 0 0 3px rgba(59,130,246,.1)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:99px}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}details > summary::-webkit-details-marker { display: none; }`}</style>
 
       {/* TOP BAR */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0, gap: 8, flexWrap: "wrap", background: "rgba(5,7,14,.97)" }}>
@@ -6155,8 +6161,8 @@ export default function App() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {teams.map((t, i) => {
                     const an = analyzeSquad(t.squad); const isMe = bidderIdx === i || (noAuc && activeTi === i); return (
-                      <div key={i} style={{ background: `rgba(255,255,255,${isMe ? .05 : .02})`, border: `1px solid ${isMe ? "rgba(6,182,212,.25)" : "rgba(255,255,255,.06)"}`, borderRadius: 18, overflow: "hidden" }}>
-                        <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.04)", display: "flex", justifyContent: "space-between", alignItems: "center", background: isMe ? "rgba(6,182,212,.04)" : "transparent" }}>
+                      <details key={i} open={isMe} style={{ background: `rgba(255,255,255,${isMe ? .05 : .02})`, border: `1px solid ${isMe ? "rgba(6,182,212,.25)" : "rgba(255,255,255,.06)"}`, borderRadius: 18, overflow: "hidden" }}>
+                        <summary style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.04)", display: "flex", justifyContent: "space-between", alignItems: "center", background: isMe ? "rgba(6,182,212,.04)" : "transparent", listStyle: "none", cursor: "pointer", outline: "none" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             {isMe && <span style={{ fontSize: 12 }}>👤</span>}
                             <span style={{ fontFamily: F, fontWeight: 800, fontSize: 16, color: "#fff" }}>{t.team}</span>
@@ -6169,7 +6175,7 @@ export default function App() {
                               <div key={x.l} style={{ textAlign: "center" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 20, color: x.c, lineHeight: 1 }}>{x.v}</div><div style={{ fontSize: 7, color: "#4b5563", letterSpacing: 1, marginTop: 2 }}>{x.l}</div></div>
                             ))}
                           </div>
-                        </div>
+                        </summary>
                         <div style={{ padding: "8px 14px 10px" }}>
                           <div style={{ display: "flex", gap: 5, marginBottom: 7 }}>
                             {[{ l: "GK", v: an.gks, n: 1, c: "#06b6d4" }, { l: "DEF", v: an.defs, n: 4, c: "#818cf8" }, { l: "MID", v: an.mids, n: 3, c: "#34d399" }, { l: "FWD", v: an.fwds, n: 3, c: "#f87171" }].map(r => (
@@ -6182,22 +6188,24 @@ export default function App() {
                           <div style={{ height: 3, background: "rgba(255,255,255,.05)", borderRadius: 99, overflow: "hidden", marginBottom: 8 }}>
                             <div style={{ height: "100%", width: `${(t.budget / cfg.pts) * 100}%`, background: `linear-gradient(90deg,${t.budget / cfg.pts > 0.5 ? "#22c55e" : t.budget / cfg.pts > 0.2 ? "#06b6d4" : "#ef4444"},transparent)`, borderRadius: 99, transition: "width .5s" }} />
                           </div>
-                          {t.squad.length > 0 && <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
-                            {[...t.squad].sort((a, b) => b.r - a.r).slice(0, 8).map((pl, pi) => {
-                              const g2 = cardGrade(pl.r, pl.cat); return (
-                                <div key={pi} style={{ flexShrink: 0, width: 48, borderRadius: 10, overflow: "hidden", background: g2.bg, border: `1px solid ${g2.a}33`, padding: "5px 3px", textAlign: "center" }}>
-                                  <Avatar player={pl} size={42} />
-                                  <div style={{ fontFamily: F, fontWeight: 800, fontSize: 11, color: g2.a, lineHeight: 1, marginTop: 2 }}>{pl.r}</div>
-                                  <div style={{ fontSize: 7, color: PC[pl.pos] || "#9ca3af" }}>{pl.pos}</div>
-                                  <div style={{ fontFamily: F, fontSize: 8, color: "#06b6d4" }}>{pl.price}pt</div>
-                                </div>
-                              );
+                          {t.squad.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 12 }}>
+                            {[...t.squad].sort((a, b) => b.r - a.r).map((pl, pi) => {
+                               const g2 = cardGrade(pl.r, pl.cat);
+                               return (
+                                 <div key={pi} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "rgba(255,255,255,.02)", border: `1px solid ${g2.a}22`, borderRadius: 10 }}>
+                                    <Avatar player={pl} size={36} />
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ fontSize: 13, color: "#fff", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pl.n}</div>
+                                      <div style={{ fontSize: 10, color: g2.a, fontFamily: F, letterSpacing: 1 }}>{pl.pos} · OVR {pl.r}</div>
+                                    </div>
+                                    <div style={{ fontFamily: F, fontSize: 12, color: "#06b6d4", fontWeight: 800 }}>{pl.price}pt</div>
+                                 </div>
+                               )
                             })}
-                            {t.squad.length > 8 && <div style={{ flexShrink: 0, width: 48, borderRadius: 10, background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.07)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#4b5563", fontFamily: F }}>+{t.squad.length - 8}</div>}
                           </div>}
-                          {!t.squad.length && <div style={{ fontSize: 11, color: "#2d3748", textAlign: "center", padding: "6px 0", fontFamily: F }}>NO PLAYERS YET</div>}
+                          {!t.squad.length && <div style={{ fontSize: 11, color: "#2d3748", textAlign: "center", padding: "16px 0", fontFamily: F }}>NO PLAYERS YET</div>}
                         </div>
-                      </div>
+                      </details>
                     );
                   })}
                 </div>
