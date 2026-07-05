@@ -5127,7 +5127,7 @@ function reducer(s, a) {
       if (!team || amount > team.budget) return s;
       if (amount <= (cur.bid || 0) && cur.bidderIdx !== null) return s;
       if (team.squad.length >= 25) return s;
-      if (team.squad.length >= 15) return s; // round 2 restriction
+      if (team.squad.length >= 25) return s; // round 2 restriction
       return { ...s, skipVotes: [], current: { ...cur, bid: amount, bidderIdx: teamIdx, timerEnd: Date.now() + s.cfg.timer * 1000 } };
     }
 
@@ -5218,7 +5218,7 @@ export default function App() {
   /* ── Selection phase countdown ── */
   useEffect(() => {
     clearInterval(selIntervalRef.current);
-    if (phase !== "ra1_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
+    if (phase !== "ra1_pick" && phase !== "ra2_pick") { setSelSecs(REAUCTION_SELECT_SECS); return; }
     setSelSecs(REAUCTION_SELECT_SECS);
     const end = Date.now() + REAUCTION_SELECT_SECS * 1000;
     selIntervalRef.current = setInterval(() => {
@@ -5226,7 +5226,7 @@ export default function App() {
       setSelSecs(rem);
       if (rem <= 0) {
         clearInterval(selIntervalRef.current);
-        dispatch({ type: "CONFIRM_RA1_SELECTION" });
+        dispatch({ type: phase === "ra1_pick" ? "CONFIRM_RA1_SELECTION" : "CONFIRM_RA2_SELECTION" });
       }
     }, 250);
     return () => clearInterval(selIntervalRef.current);
@@ -5265,7 +5265,7 @@ export default function App() {
     if (!t || amount > t.budget) { flash(`Only ${t?.budget || 0}pt left!`); return; }
     if (amount <= (current.bid || 0) && current.bidderIdx !== null) { flash(`Must beat ${current.bid}pt`); return; }
     if (t.squad.length >= 25) { flash("Squad full!"); return; }
-    if (r2 && t.squad.length >= 15) { flash("Only squads under 25 can bid in Round 2!"); return; }
+    if (r2 && t.squad.length >= 25) { flash("Only squads under 25 can bid in Round 2!"); return; }
     dispatch({ type: r2 ? "PLACE_BID_R2" : "PLACE_BID", teamIdx: ti, amount });
   }
   function bidInc(i, r2) { placeBid((current?.bid || 0) + i, r2); }
