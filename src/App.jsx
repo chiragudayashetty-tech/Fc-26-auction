@@ -5042,6 +5042,9 @@ function reducer(s, a) {
       };
     }
 
+    case "TOGGLE_TRANSFER": {
+      return { ...s, transferred: { ...(s.transferred || {}), [a.id]: !(s.transferred || {})[a.id] } };
+    }
     case "DISMISS_BANNER": {
       const next = s._nextPlayer;
       if (!next) return { ...s, banner: null };
@@ -5774,12 +5777,24 @@ export default function App() {
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                       {pls.map((pl, pi) => {
                         const g2 = cardGrade(pl.r, pl.cat);
+                        const isX = s.transferred?.[pl.id];
                         return (
-                          <div key={pi} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 10, background: `${PC[pl.pos] || "#6b7280"}12`, border: `1px solid ${PC[pl.pos] || "#6b7280"}28`, fontSize: 11 }}>
+                          <div 
+                            key={pi} 
+                            onClick={() => dispatchLocal({ type: "TOGGLE_TRANSFER", id: pl.id })}
+                            style={{ 
+                              cursor: "pointer", 
+                              display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 10, 
+                              background: isX ? "rgba(255,255,255,.02)" : `${PC[pl.pos] || "#6b7280"}12`, 
+                              border: `1px solid ${isX ? "rgba(255,255,255,.05)" : (PC[pl.pos] || "#6b7280") + "28"}`, 
+                              fontSize: 11,
+                              opacity: isX ? 0.35 : 1,
+                              transition: "all 0.2s"
+                            }}>
                             <Avatar player={pl} size={28} />
                             <div>
                               <div style={{ color: g2.a, fontFamily: F, fontSize: 9, lineHeight: 1 }}>{pl.pos} OVR {pl.r}</div>
-                              <div style={{ color: "#e5e7eb", fontSize: 11, fontWeight: 600 }}>{pl.s}</div>
+                              <div style={{ color: "#e5e7eb", fontSize: 11, fontWeight: 600, textDecoration: isX ? "line-through" : "none" }}>{pl.s}</div>
                               <div style={{ color: "#06b6d4", fontFamily: F, fontSize: 9 }}>{pl.price}pt</div>
                             </div>
                           </div>
