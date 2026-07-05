@@ -4990,7 +4990,11 @@ function reducer(s, a) {
       const cur = s.current;
       if (!cur || cur.status !== "active") return s;
       const already = s.skipVotes.includes(a.teamIdx);
-      const votes = already ? s.skipVotes.filter(v => v !== a.teamIdx) : [...s.skipVotes, a.teamIdx];
+      let votes = already ? s.skipVotes.filter(v => v !== a.teamIdx) : [...s.skipVotes, a.teamIdx];
+      
+      // Auto-skip for eliminated teams
+      const eliminated = s.teams.map((t, i) => (t.budget <= 0 || t.squad.length >= 25) ? i : -1).filter(i => i !== -1);
+      eliminated.forEach(idx => { if (!votes.includes(idx)) votes.push(idx); });
       
       const requiredVotes = s.teams.length - (cur.bidderIdx !== null ? 1 : 0);
       if (votes.length >= requiredVotes) {
@@ -5098,10 +5102,12 @@ function reducer(s, a) {
       const ra1Unsold = s.unsoldPool.filter(p => !(s.selVotes[p.id] || []).length);
       if (!reaucQueue.length) return { ...s, phase: "results", selVotes: {}, startRaVotes: [] };
       const [first, ...rest] = reaucQueue;
+      const eliminated = s.teams.map((t, i) => (t.budget <= 0 || t.squad.length >= 25) ? i : -1).filter(i => i !== -1);
       return {
         ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {}, startRaVotes: [],
         raPhaseLabel: "REAUCTION — ROUND 1",
-        current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
+        current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" },
+        skipVotes: eliminated
       };
     }
 
