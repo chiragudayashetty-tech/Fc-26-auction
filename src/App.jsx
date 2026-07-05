@@ -5821,7 +5821,26 @@ export default function App() {
               y = doc.lastAutoTable.finalY + 15;
               if (y > 270) { doc.addPage(); y = 20; }
             });
-            doc.save("fc26-auction-results.pdf");
+            
+            // Fix for iOS Safari: use native Share API to allow "Save to Files" if available
+            try {
+              const pdfBlob = doc.output('blob');
+              const file = new File([pdfBlob], "fc26-auction-results.pdf", { type: "application/pdf" });
+              if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                  files: [file],
+                  title: "FC 26 Auction Results"
+                }).catch(err => {
+                  console.log("Share cancelled or failed:", err);
+                  // Fallback if they cancel, no big deal
+                });
+              } else {
+                doc.save("fc26-auction-results.pdf");
+              }
+            } catch (e) {
+              // Ultimate fallback
+              doc.save("fc26-auction-results.pdf");
+            }
           }} style={{ ...BTN("linear-gradient(135deg,#06b6d4,#0891b2)"), padding: "14px", fontSize: 14, letterSpacing: 2, flex: 1 }}>📄 EXPORT PDF</button>
         </div>
         <button onClick={() => { 
