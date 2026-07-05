@@ -5463,10 +5463,23 @@ export default function App() {
     return (
       <div style={PG}><style>{FONTS + ANIM}</style>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "28px 16px 120px", display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, position: "sticky", top: 0, background: "#050810", padding: "10px 0", zIndex: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, position: "sticky", top: 0, background: "#050810", padding: "10px 0", zIndex: 10, flexWrap: "wrap" }}>
             <button onClick={() => dispatch({ type: "PATCH", patch: { phase: "config" } })} style={BACK}>← Back</button>
             <div style={{ fontFamily: F, fontWeight: 800, fontSize: 24, letterSpacing: 2, color: "#fff" }}>MANUAL PLAYER SELECTION</div>
-            <div style={{ marginLeft: "auto", fontSize: 16, fontWeight: "bold", color: "#3b82f6" }}>TOTAL: {cfg.pool ? cfg.pool.length : PLAYERS.length}</div>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+              {(() => {
+                 const curLen = cfg.pool ? cfg.pool.length : PLAYERS.length;
+                 const isAll = curLen === PLAYERS.length;
+                 return (
+                   <button onClick={() => {
+                     dispatch({ type: "SET_CFG", patch: { pool: isAll ? [] : PLAYERS.map(p=>p.id) } });
+                   }} style={{ background: isAll ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)", color: isAll ? "#ef4444" : "#10b981", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: "bold", letterSpacing: 1 }}>
+                     {isAll ? "DESELECT ALL" : "SELECT ALL"}
+                   </button>
+                 );
+              })()}
+              <div style={{ fontSize: 16, fontWeight: "bold", color: "#3b82f6" }}>TOTAL: {cfg.pool ? cfg.pool.length : PLAYERS.length}</div>
+            </div>
           </div>
           {clubs.map(c => {
             const cPlayers = PLAYERS.filter(p => p.club === c);
