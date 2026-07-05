@@ -5176,7 +5176,7 @@ export default function App() {
   const selIntervalRef = useRef(null);
   const prevStatusRef = useRef(null);
 
-  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formation, formSlots, sqView, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool } = s;
+  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formation, formSlots, sqView, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool, startRaVotes } = s;
   const isAuctioneer = role === "auctioneer";
   const bidderIdx = role && role !== "auctioneer" ? role.bidder : null;
   const noAuc = !cfg.needAuctioneer;
