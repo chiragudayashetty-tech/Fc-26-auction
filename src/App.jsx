@@ -5141,6 +5141,7 @@ export default function App() {
   const [selSecs, setSelSecs] = useState(REAUCTION_SELECT_SECS);
   const [tab, setTab] = useState("bid");
   const [dashSub, setDashSub] = useState("overview");
+  const [dashOpen, setDashOpen] = useState({});
   const [dragUid, setDragUid] = useState(null);
   const [rAction, setRAction] = useState(null);
   const [roomName, setRoomName] = useState("");
@@ -5871,7 +5872,7 @@ export default function App() {
 
   return (
     <div style={{ ...PG, height: "100dvh", overflow: "hidden" }}>
-      <style>{FONTS + ANIM + `.bb:hover{filter:brightness(1.15);transform:translateY(-2px)}.bb:active{transform:scale(.96)}.ti:focus{outline:none;border-color:#3b82f6!important;box-shadow:0 0 0 3px rgba(59,130,246,.1)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:99px}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}details > summary::-webkit-details-marker { display: none; }`}</style>
+      <style>{FONTS + ANIM + `.bb:hover{filter:brightness(1.15);transform:translateY(-2px)}.bb:active{transform:scale(.96)}.ti:focus{outline:none;border-color:#3b82f6!important;box-shadow:0 0 0 3px rgba(59,130,246,.1)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:99px}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}`}</style>
 
       {/* TOP BAR */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0, gap: 8, flexWrap: "wrap", background: "rgba(5,7,14,.97)" }}>
@@ -6160,23 +6161,27 @@ export default function App() {
               {dashSub === "overview" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {teams.map((t, i) => {
-                    const an = analyzeSquad(t.squad); const isMe = bidderIdx === i || (noAuc && activeTi === i); return (
-                      <details key={i} open={isMe} style={{ background: `rgba(255,255,255,${isMe ? .05 : .02})`, border: `1px solid ${isMe ? "rgba(6,182,212,.25)" : "rgba(255,255,255,.06)"}`, borderRadius: 18, overflow: "hidden" }}>
-                        <summary style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,.04)", display: "flex", justifyContent: "space-between", alignItems: "center", background: isMe ? "rgba(6,182,212,.04)" : "transparent", listStyle: "none", cursor: "pointer", outline: "none" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            {isMe && <span style={{ fontSize: 12 }}>👤</span>}
-                            <span style={{ fontFamily: F, fontWeight: 800, fontSize: 16, color: "#fff" }}>{t.team}</span>
-                            <div style={{ width: 6, height: 6, borderRadius: 99, background: t.online ? "#10b981" : "#4b5563", boxShadow: t.online ? "0 0 6px #10b981" : "none" }}></div>
-                            <span style={{ fontSize: 10, color: "#4b5563", marginLeft: 2 }}>{t.name}</span>
-                            {isR2 && t.squad.length < 25 && <span style={{ fontSize: 9, color: "#4ade80", marginLeft: 6, fontFamily: F }}>✓ R2</span>}
-                          </div>
-                          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                            {[{ v: an.str, l: "OVR", c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#06b6d4" : "#ef4444" }, { v: t.budget, l: "PTS", c: "#06b6d4" }, { v: `${t.squad.length}/25`, l: "SQ", c: t.squad.length < 25 ? "#ef4444" : "#22c55e" }].map(x => (
-                              <div key={x.l} style={{ textAlign: "center" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 20, color: x.c, lineHeight: 1 }}>{x.v}</div><div style={{ fontSize: 7, color: "#4b5563", letterSpacing: 1, marginTop: 2 }}>{x.l}</div></div>
-                            ))}
-                          </div>
-                        </summary>
-                        <div style={{ padding: "8px 14px 10px" }}>
+                    const an = analyzeSquad(t.squad); const isMe = bidderIdx === i || (noAuc && activeTi === i);
+                        const isOpen = isMe || dashOpen[i];
+                        return (
+                          <div key={i} style={{ background: `rgba(255,255,255,${isMe ? .05 : .02})`, border: `1px solid ${isMe ? "rgba(6,182,212,.25)" : "rgba(255,255,255,.06)"}`, borderRadius: 18, overflow: "hidden", marginBottom: 12 }}>
+                            <div onClick={() => !isMe && setDashOpen(prev => ({ ...prev, [i]: !prev[i] }))} style={{ padding: "12px 16px", borderBottom: isOpen ? "1px solid rgba(255,255,255,.04)" : "none", display: "flex", justifyContent: "space-between", alignItems: "center", background: isMe ? "rgba(6,182,212,.04)" : "transparent", cursor: isMe ? "default" : "pointer" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                {isMe && <span style={{ fontSize: 12 }}>👤</span>}
+                                <span style={{ fontFamily: F, fontWeight: 800, fontSize: 16, color: "#fff" }}>{t.team}</span>
+                                <div style={{ width: 6, height: 6, borderRadius: 99, background: t.online ? "#10b981" : "#4b5563", boxShadow: t.online ? "0 0 6px #10b981" : "none" }}></div>
+                                <span style={{ fontSize: 10, color: "#4b5563", marginLeft: 2 }}>{t.name}</span>
+                                {isR2 && t.squad.length < 25 && <span style={{ fontSize: 9, color: "#4ade80", marginLeft: 6, fontFamily: F }}>✓ R2</span>}
+                              </div>
+                              <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                                {[{ v: an.str, l: "OVR", c: an.str > 70 ? "#22c55e" : an.str > 50 ? "#06b6d4" : "#ef4444" }, { v: t.budget, l: "PTS", c: "#06b6d4" }, { v: `${t.squad.length}/25`, l: "SQ", c: t.squad.length < 25 ? "#ef4444" : "#22c55e" }].map(x => (
+                                  <div key={x.l} style={{ textAlign: "center" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 20, color: x.c, lineHeight: 1 }}>{x.v}</div><div style={{ fontSize: 7, color: "#4b5563", letterSpacing: 1, marginTop: 2 }}>{x.l}</div></div>
+                                ))}
+                                {!isMe && <div style={{ fontSize: 14, color: "#6b7280", marginLeft: 4 }}>{isOpen ? "▲" : "▼"}</div>}
+                              </div>
+                            </div>
+                            {isOpen && (
+                              <div style={{ padding: "8px 14px 10px" }}>
                           <div style={{ display: "flex", gap: 5, marginBottom: 7 }}>
                             {[{ l: "GK", v: an.gks, n: 1, c: "#06b6d4" }, { l: "DEF", v: an.defs, n: 4, c: "#818cf8" }, { l: "MID", v: an.mids, n: 3, c: "#34d399" }, { l: "FWD", v: an.fwds, n: 3, c: "#f87171" }].map(r => (
                               <div key={r.l} style={{ flex: 1, textAlign: "center", padding: "5px 2px", borderRadius: 9, background: `${r.c}${r.v >= r.n ? "12" : "07"}`, border: `1px solid ${r.c}${r.v >= r.n ? "35" : "18"}` }}>
@@ -6205,8 +6210,9 @@ export default function App() {
                           </div>}
                           {!t.squad.length && <div style={{ fontSize: 11, color: "#2d3748", textAlign: "center", padding: "16px 0", fontFamily: F }}>NO PLAYERS YET</div>}
                         </div>
-                      </details>
-                    );
+                            )}
+                          </div>
+                        );
                   })}
                 </div>
               )}
