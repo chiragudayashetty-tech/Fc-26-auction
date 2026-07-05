@@ -5289,8 +5289,8 @@ export default function App() {
   const isReauction = phase === "ra1_auction";
   const isR2 = isReauction;
   const canBidR2 = activeTeam && activeTeam.squad.length < 25;
-  const isPickPhase = phase === "ra1_pick";
-  const pickPool = unsoldPool;
+  const isPickPhase = phase === "ra1_pick" || phase === "ra2_pick";
+  const pickPool = phase === "ra2_pick" ? (ra1Unsold || []) : unsoldPool;
 
   /* ════════════════════════════════════════════════════════
      LOBBY
