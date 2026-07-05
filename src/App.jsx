@@ -5809,7 +5809,11 @@ export default function App() {
               doc.setTextColor(100, 116, 139);
               doc.text(`Budget Remaining: ${t.budget}pt | Squad Size: ${t.squad.length}/25`, 14, y + 6);
               y += 12;
-              const tableData = t.squad.map(p => [p.n, p.r.toString(), p.pos, p.club, `${p.price} pt`]);
+              const sortedSquad = [...t.squad].sort((a, b) => {
+                if (a.club !== b.club) return (a.club || "").localeCompare(b.club || "");
+                return (b.r || 0) - (a.r || 0);
+              });
+              const tableData = sortedSquad.map(p => [p.n, p.r.toString(), p.pos, p.club, `${p.price} pt`]);
               autoTable(doc, {
                 startY: y,
                 head: [['Player', 'OVR', 'Pos', 'Club', 'Price']],
