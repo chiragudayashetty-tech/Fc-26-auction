@@ -304,73 +304,45 @@ function mkQueue(cfg) {
   const sh = a => [...a].sort(() => Math.random() - 0.5);
   const poolIds = cfg.pool || PLAYERS.map(p => p.id);
   const activePlayers = PLAYERS.filter(p => poolIds.includes(p.id));
-  
-  // === M1 POOL ===
-  const m1DecoysNames = ["Haaland", "Mbappé", "Kane", "Pedri", "Salah", "Kimmich", "Donnarumma", "Valverde", "Yamal", "Oblak", "Bruno Fernandes", "Barella"];
-  const m1TargetsNames = ["Rodri", "Gabriel", "Bellingham", "Vitinha", "Dembélé", "Hakimi", "Courtois", "Vini Jr.", "Olise", "Raphinha", "van Dijk", "Alisson", "Lautaro Martínez"];
-  
-  let m1Decoys = activePlayers.filter(p => p.cat === "M1" && m1DecoysNames.some(name => p.n.includes(name)));
-  let m1Targets = activePlayers.filter(p => p.cat === "M1" && m1TargetsNames.some(name => p.n.includes(name)));
-  
-  // Sneaky mix: Take 2 random decoys and mix them into targets
-  m1Decoys = sh(m1Decoys);
-  const mixedDecoys = m1Decoys.splice(0, 2); 
-  const m1Front = m1Decoys;
-  const m1Back = sh([...m1Targets, ...mixedDecoys]);
-  const m1Rest = sh(activePlayers.filter(p => p.cat === "M1" && !m1DecoysNames.some(name => p.n.includes(name)) && !m1TargetsNames.some(name => p.n.includes(name))));
-  
-  const m1 = [...m1Front, ...m1Rest, ...m1Back];
 
-  // === M2 POOL ===
-  const m2DecoysNames = ["Rice", "De Bruyne", "Marquinhos", "Messi", "Lewandowski", "Wirtz", "Saka", "Ødegaard", "Raya", "Maignan", "Sommer", "Çalhanoğlu", "Tah", "de Jong", "Isak", "Bastoni", "R. Dias", "L. Díaz", "Pacho"];
-  const m2TargetsNames = ["Saliba", "Nuno Mendes", "Kvaratskhelia", "Caicedo", "João Neves", "Musiala"];
-  
-  const m2Front = sh(activePlayers.filter(p => p.cat === "M2" && m2DecoysNames.some(name => p.n.includes(name))));
-  const m2Back = sh(activePlayers.filter(p => p.cat === "M2" && m2TargetsNames.some(name => p.n.includes(name))));
-  const m2Rest = sh(activePlayers.filter(p => p.cat === "M2" && !m2DecoysNames.some(name => p.n.includes(name)) && !m2TargetsNames.some(name => p.n.includes(name))));
-  
-  const m2 = [...m2Front, ...m2Rest, ...m2Back];
+  const TARGETS = {
+    M1: ["Rodri", "Gabriel", "Bellingham", "Vitinha", "Dembélé", "Hakimi", "Courtois", "Vini Jr.", "Olise", "Raphinha", "van Dijk", "Alisson", "Lautaro Martínez"],
+    M2: ["Saliba", "Kvaratskhelia", "Mendes", "Caicedo", "Neves", "Musiala"],
+    FWD: ["Doué", "Guirassy", "Rodrygo", "Williams"],
+    MID: ["Zubimendi", "Eze"],
+    DEF: ["Koundé", "Cucurella", "Konaté", "Timber"],
+    GK: ["Diogo Costa"]
+  };
 
-  // === FWD POOL ===
-  const fwdPool = activePlayers.filter(p => p.cat === "FWD");
-  const fwdDoue = fwdPool.filter(p => p.n.includes("Doué"));
-  const fwdMidLate = fwdPool.filter(p => ["Guirassy", "Rodrygo", "Williams"].some(name => p.n.includes(name)));
-  const fwdRest = sh(fwdPool.filter(p => !p.n.includes("Doué") && !["Guirassy", "Rodrygo", "Williams"].some(name => p.n.includes(name))));
-  
-  // Split rest into two halves
-  const fwdHalfIdx = Math.floor(fwdRest.length / 2);
-  const fwdFirstHalf = fwdRest.slice(0, fwdHalfIdx);
-  const fwdSecondHalf = fwdRest.slice(fwdHalfIdx);
-  
-  // Mix Guirassy/Rodrygo/Nico into second half, Doué into the very end
-  const fwdBackMixed = sh([...fwdSecondHalf, ...fwdMidLate]);
-  // Extract the last 5 players from back mixed to insert Doué
-  const finalFwdPart = fwdBackMixed.splice(-5);
-  const fwdFinal = sh([...finalFwdPart, ...fwdDoue]);
-  
-  const fwd = [...fwdFirstHalf, ...fwdBackMixed, ...fwdFinal];
+  const processPool = (cat, targetsList) => {
+    const pool = activePlayers.filter(p => p.cat === cat);
+    if (!pool.length) return [];
+    
+    let targets = pool.filter(p => targetsList.some(name => p.n.includes(name)));
+    let nonTargets = pool.filter(p => !targetsList.some(name => p.n.includes(name)));
 
-  // === MID POOL ===
-  const midPool = activePlayers.filter(p => p.cat === "MID");
-  const midTargets = midPool.filter(p => ["Zubimendi", "Eze"].some(name => p.n.includes(name)));
-  const midRest = sh(midPool.filter(p => !["Zubimendi", "Eze"].some(name => p.n.includes(name))));
-  
-  const midHalfIdx = Math.floor(midRest.length / 1.5); // Push targets to the last third
-  const midFirst = midRest.slice(0, midHalfIdx);
-  const midSecond = midRest.slice(midHalfIdx);
-  const midBack = sh([...midSecond, ...midTargets]);
-  
-  const mid = [...midFirst, ...midBack];
+    targets = sh(targets);
+    nonTargets = sh(nonTargets);
 
-  // === DEF POOL ===
-  const defPool = activePlayers.filter(p => p.cat === "DEF");
-  const defTargets = defPool.filter(p => ["Cucurella", "Koundé"].some(name => p.n.includes(name)));
-  const defRest = sh(defPool.filter(p => !["Cucurella", "Koundé"].some(name => p.n.includes(name))));
-  
-  const def = [...defRest, ...sh(defTargets)];
+    // 70% to 80% of non-targets go in the front
+    const minFront = Math.floor(nonTargets.length * 0.70);
+    const maxFront = Math.floor(nonTargets.length * 0.80);
+    const splitPoint = Math.floor(Math.random() * (maxFront - minFront + 1)) + minFront;
 
-  // === GK POOL ===
-  const gk = sh(activePlayers.filter(p => p.cat === "GK"));
+    const front = nonTargets.slice(0, splitPoint);
+    const remaining = nonTargets.slice(splitPoint);
+
+    // Mix the targets with the remaining non-targets
+    const endSection = sh([...targets, ...remaining]);
+    return [...front, ...endSection];
+  };
+
+  const m1 = processPool("M1", TARGETS.M1);
+  const m2 = processPool("M2", TARGETS.M2);
+  const fwd = processPool("FWD", TARGETS.FWD);
+  const mid = processPool("MID", TARGETS.MID);
+  const def = processPool("DEF", TARGETS.DEF);
+  const gk = processPool("GK", TARGETS.GK);
 
   return [...m1, ...m2, ...fwd, ...mid, ...def, ...gk];
 }
