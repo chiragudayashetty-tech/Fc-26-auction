@@ -298,8 +298,6 @@ const INIT = {
   ra1Unsold: [],      // players still unsold after round 1 (input for round 2)
   selVotes: {},       // {playerId: Set of teamIdx} — who voted to reauction this player
   raPhaseLabel: "",   // "ROUND 1 — UNSOLD REAUCTION" | "ROUND 2 — SMALL SQUADS"
-  trades: [],           // [{id,fromIdx,toIdx,offerPlayers,offerCash,wantPlayers,wantCash,offerValue,status,ts}]
-  tradeWindowEnd: null, // timestamp when 5-min trade window closes
 };
 
 function mkQueue(cfg) {
@@ -519,9 +517,9 @@ function reducer(s, a) {
         if (s.phase === "auction" && s.unsoldPool.length > 0) {
           return { ...s, phase: "ra1_pick", selVotes: {}, selTimerEnd: Date.now() + 60000 };
         }
-        // End of reauction round 1 → open 5-min trade window
+        // End of reauction round 1
         if (s.phase === "ra1_auction") {
-          return { ...s, phase: "trade_window", tradeWindowEnd: Date.now() + 5 * 60 * 1000, current: null, trades: [] };
+          return { ...s, phase: "results", current: null };
         }
         return { ...s, phase: "results" };
       }
@@ -605,63 +603,6 @@ function reducer(s, a) {
       return { ...s, skipVotes: [], current: { ...cur, bid: amount, bidderIdx: teamIdx, timerEnd: Date.now() + s.cfg.timer * 1000 } };
     }
 
-    // ── TRADE WINDOW ────────────────────────────────────────────
-    case "CLOSE_TRADE_WINDOW": {
-      return { ...s, phase: "results" };
-    }
-
-    case "PROPOSE_TRADE": {
-      const { fromIdx, toIdx, offerPlayers, offerCash, wantPlayers, wantCash } = a;
-      const from = s.teams[fromIdx];
-      const to = s.teams[toIdx];
-      if (!from || !to) return s;
-      // Max 2 outgoing pending proposals per team
-      const myOutgoing = (s.trades || []).filter(t => t.fromIdx === fromIdx && t.status === "pending");
-      if (myOutgoing.length >= 2) return s;
-      // Validate ownership
-      if (!offerPlayers.every(uid => from.squad.some(p => p.uid === uid))) return s;
-      if (!wantPlayers.every(uid => to.squad.some(p => p.uid === uid))) return s;
-      // Check cash
-      if (from.budget < offerCash) return s;
-      // Equivalent exchange
-      const offerValue = offerPlayers.reduce((sum, uid) => sum + (from.squad.find(p => p.uid === uid)?.price || 0), 0) + offerCash;
-      const wantValue  = wantPlayers.reduce((sum, uid) => sum + (to.squad.find(p => p.uid === uid)?.price || 0), 0) + wantCash;
-      if (offerValue !== wantValue) return s;
-      const trade = { id: Date.now() + Math.random(), fromIdx, toIdx, offerPlayers, offerCash, wantPlayers, wantCash, offerValue, status: "pending", ts: Date.now() };
-      return { ...s, trades: [...(s.trades || []), trade] };
-    }
-
-    case "ACCEPT_TRADE": {
-      const trade = (s.trades || []).find(t => t.id === a.tradeId && t.status === "pending");
-      if (!trade) return s;
-      const from = s.teams[trade.fromIdx];
-      const to   = s.teams[trade.toIdx];
-      if (!from || !to) return s;
-      // Re-validate
-      if (!trade.offerPlayers.every(uid => from.squad.some(p => p.uid === uid))) return s;
-      if (!trade.wantPlayers.every(uid => to.squad.some(p => p.uid === uid))) return s;
-      if (from.budget < trade.offerCash) return s;
-      if (to.budget < trade.wantCash) return s;
-      const newTeams = s.teams.map((t, i) => {
-        if (i === trade.fromIdx) {
-          const squad = t.squad.filter(p => !trade.offerPlayers.includes(p.uid)).concat(trade.wantPlayers.map(uid => to.squad.find(p => p.uid === uid)));
-          return { ...t, budget: t.budget - trade.offerCash + trade.wantCash, squad };
-        }
-        if (i === trade.toIdx) {
-          const squad = t.squad.filter(p => !trade.wantPlayers.includes(p.uid)).concat(trade.offerPlayers.map(uid => from.squad.find(p => p.uid === uid)));
-          return { ...t, budget: t.budget - trade.wantCash + trade.offerCash, squad };
-        }
-        return t;
-      });
-      return { ...s, teams: newTeams, trades: (s.trades || []).map(t => t.id === trade.id ? { ...t, status: "accepted" } : t) };
-    }
-
-    case "REJECT_TRADE":
-      return { ...s, trades: (s.trades || []).map(t => t.id === a.tradeId ? { ...t, status: "rejected" } : t) };
-
-    case "CANCEL_TRADE":
-      return { ...s, trades: (s.trades || []).map(t => t.id === a.tradeId ? { ...t, status: "cancelled" } : t) };
-
     default: return s;
   }
 }
@@ -681,13 +622,7 @@ export default function App() {
   // Watchlist — local per-browser, persisted to localStorage
   const [watchlist, setWatchlist] = useState(() => { try { return JSON.parse(localStorage.getItem("fc26_wl") || "[]"); } catch { return []; } });
   const toggleWatch = (id) => setWatchlist(prev => { const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; try { localStorage.setItem("fc26_wl", JSON.stringify(n)); } catch {} return n; });
-  // Trade builder state (local only until PROPOSE is dispatched)
-  const [tradeTarget, setTradeTarget] = useState(null);
-  const [tradeOfferPl, setTradeOfferPl] = useState([]);
-  const [tradeOfferCash, setTradeOfferCash] = useState(0);
-  const [tradeWantPl, setTradeWantPl] = useState([]);
-  const [tradeWantCash, setTradeWantCash] = useState(0);
-  const [tradeSecs, setTradeSecs] = useState(300);
+
   const [roomName, setRoomName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [myName, setMyName] = useState("");
@@ -720,7 +655,7 @@ export default function App() {
   const selIntervalRef = useRef(null);
   const prevStatusRef = useRef(null);
 
-  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formations, formSlots, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool, startRaVotes, isPaused, pausedRem, trades, tradeWindowEnd } = s;
+  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formations, formSlots, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool, startRaVotes, isPaused, pausedRem } = s;
   const isAuctioneer = role === "auctioneer";
   const bidderIdx = role && role !== "auctioneer" ? role.bidder : null;
   const activeSqIdx = bidderIdx !== null ? bidderIdx : 0;
@@ -731,12 +666,6 @@ export default function App() {
   const isHost = session.isHost === true;
 
 
-
-  // Switch tab automatically on phase change
-  useEffect(() => {
-    if (phase === "trade_window") setTab("trade");
-    else if (phase === "results") setTab("dash");
-  }, [phase]);
 
   // Auto-assign role based on UID if in auction
   useEffect(() => {
@@ -771,20 +700,6 @@ export default function App() {
       } catch {}
     }
   }, [current?.uid]);
-
-  /* ── Trade window countdown ── */
-  useEffect(() => {
-    if (phase !== "trade_window" || !tradeWindowEnd) return;
-    let closed = false;
-    const tick = () => {
-      const rem = Math.max(0, Math.ceil((tradeWindowEnd - Date.now()) / 1000));
-      setTradeSecs(rem);
-      if (rem <= 0 && !closed) { closed = true; dispatch({ type: "CLOSE_TRADE_WINDOW" }); }
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [phase, tradeWindowEnd]);
 
   /* ── Wall-clock timer ── */
   useEffect(() => {
@@ -1531,171 +1446,15 @@ export default function App() {
 
       {/* TABS */}
       <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0, background: "rgba(5,7,14,.9)" }}>
-        {(phase === "results" ? [["dash", "📊 DASH"], ["squads", "👥 SQUADS"], ["list", "📋 LIST"]] : phase === "trade_window" ? [["trade", "🤝 TRADE"], ["dash", "📊 DASH"], ["squads", "👥 SQUADS"], ["list", "📋 LIST"]] : [["bid", "⚡ BID"], ["list", "📋 LIST"], ["dash", "📊 DASH"], ["squads", "👥 SQUADS"]]).map(([k, lb]) => (
+        {(phase === "results" ? [["dash", "📊 DASH"], ["squads", "👥 SQUADS"], ["list", "📋 LIST"]] : [["bid", "⚡ BID"], ["list", "📋 LIST"], ["dash", "📊 DASH"], ["squads", "👥 SQUADS"]]).map(([k, lb]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 0", background: "none", border: "none", fontFamily: F, fontWeight: 600, fontSize: 11, letterSpacing: 2, color: tab === k ? "#06b6d4" : "#4b5563", borderBottom: tab === k ? "2px solid #06b6d4" : "2px solid transparent", cursor: "pointer", transition: "all .2s" }}>{lb}</button>
         ))}
       </div>
 
       <div style={{ flex: 1, overflow: "hidden", display: "flex", minHeight: 0 }}>
 
-        {/* TRADE WINDOW TAB */}
-        {tab === "trade" && phase === "trade_window" && (() => {
-          const myIdx = noAuc ? activeTi : (bidderIdx !== null ? bidderIdx : null);
-          const myTeam = myIdx !== null ? teams[myIdx] : null;
-          const myPending  = (trades || []).filter(t => t.fromIdx === myIdx && t.status === "pending");
-          const myIncoming = (trades || []).filter(t => t.toIdx   === myIdx && t.status === "pending");
-          const offerTotal = tradeOfferPl.reduce((sum, uid) => { const p = myTeam?.squad?.find(x => x.uid === uid); return sum + (p?.price || 0); }, 0) + tradeOfferCash;
-          const targetTeam = tradeTarget !== null ? teams[tradeTarget] : null;
-          const wantTotal  = tradeWantPl.reduce((sum, uid)  => { const p = targetTeam?.squad?.find(x => x.uid === uid); return sum + (p?.price || 0); }, 0) + tradeWantCash;
-          const balanced   = offerTotal > 0 && offerTotal === wantTotal;
-          const mm = String(Math.floor(tradeSecs / 60)).padStart(2, "0");
-          const ss = String(tradeSecs % 60).padStart(2, "0");
-          return (
-            <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px 80px" }}>
-              <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 10 }}>
-
-                {/* Header */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(255,255,255,.03)", borderRadius: 14, border: "1px solid rgba(255,255,255,.07)" }}>
-                  <div style={{ fontFamily: F, fontWeight: 700, fontSize: 14, color: "#fff", letterSpacing: 1 }}>🤝 TRADE CENTER</div>
-                  <div style={{ fontFamily: F, fontSize: 13, color: tradeSecs < 60 ? "#ef4444" : "#06b6d4", fontWeight: 700 }}>⏱ {mm}:{ss}</div>
-                </div>
-
-                {/* Quota badge */}
-                {myIdx !== null && (
-                  <div style={{ padding: "8px 14px", background: myPending.length >= 2 ? "rgba(239,68,68,.08)" : "rgba(6,182,212,.06)", borderRadius: 10, border: "1px solid " + (myPending.length >= 2 ? "rgba(239,68,68,.25)" : "rgba(6,182,212,.15)"), fontFamily: F, fontSize: 11, color: myPending.length >= 2 ? "#f87171" : "#67e8f9", letterSpacing: 1 }}>
-                    {myPending.length >= 2 ? "⛔ TRADE LIMIT REACHED (2 / 2) — CANCEL ONE TO PROPOSE AGAIN" : `OUTGOING PROPOSALS: ${myPending.length} / 2`}
-                  </div>
-                )}
-
-                {/* Incoming */}
-                {myIncoming.length > 0 && (
-                  <div style={{ padding: "10px 14px", background: "rgba(255,255,255,.03)", borderRadius: 14, border: "1px solid rgba(255,255,255,.07)" }}>
-                    <div style={{ fontFamily: F, fontSize: 10, color: "#4b5563", letterSpacing: 2, marginBottom: 8 }}>📥 INCOMING OFFERS</div>
-                    {myIncoming.map(tr => {
-                      const ft = teams[tr.fromIdx];
-                      return (
-                        <div key={tr.id} style={{ padding: "10px 12px", background: "rgba(16,185,129,.06)", borderRadius: 12, border: "1px solid rgba(16,185,129,.2)", marginBottom: 8 }}>
-                          <div style={{ fontFamily: F, fontSize: 11, color: "#4ade80", fontWeight: 700, marginBottom: 4 }}>FROM: {ft?.team}</div>
-                          <div style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", marginBottom: 2 }}>THEY GIVE: {tr.offerPlayers.map(uid => ft?.squad?.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.offerCash > 0 ? ` + ${tr.offerCash}pt cash` : ""} ({tr.offerValue}pt)</div>
-                          <div style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", marginBottom: 8 }}>YOU GIVE: {tr.wantPlayers.map(uid => myTeam?.squad?.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.wantCash > 0 ? ` + ${tr.wantCash}pt cash` : ""} ({tr.offerValue}pt)</div>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={() => dispatch({ type: "ACCEPT_TRADE", tradeId: tr.id })} style={{ flex: 1, padding: "8px 0", background: "linear-gradient(135deg,#10b981,#059669)", border: "none", borderRadius: 10, color: "#fff", fontFamily: F, fontWeight: 700, fontSize: 12, letterSpacing: 1, cursor: "pointer" }}>✅ ACCEPT</button>
-                            <button onClick={() => dispatch({ type: "REJECT_TRADE", tradeId: tr.id })} style={{ flex: 1, padding: "8px 0", background: "rgba(239,68,68,.15)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 10, color: "#f87171", fontFamily: F, fontWeight: 700, fontSize: 12, letterSpacing: 1, cursor: "pointer" }}>❌ REJECT</button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* My outgoing pending */}
-                {myPending.length > 0 && (
-                  <div style={{ padding: "10px 14px", background: "rgba(255,255,255,.03)", borderRadius: 14, border: "1px solid rgba(255,255,255,.07)" }}>
-                    <div style={{ fontFamily: F, fontSize: 10, color: "#4b5563", letterSpacing: 2, marginBottom: 8 }}>📤 MY PENDING OFFERS</div>
-                    {myPending.map(tr => {
-                      const tt = teams[tr.toIdx];
-                      return (
-                        <div key={tr.id} style={{ padding: "10px 12px", background: "rgba(251,191,36,.06)", borderRadius: 12, border: "1px solid rgba(251,191,36,.2)", marginBottom: 8 }}>
-                          <div style={{ fontFamily: F, fontSize: 11, color: "#fbbf24", fontWeight: 700, marginBottom: 4 }}>TO: {tt?.team}</div>
-                          <div style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", marginBottom: 6 }}>YOU GIVE: {tr.offerPlayers.map(uid => myTeam?.squad?.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.offerCash > 0 ? ` + ${tr.offerCash}pt` : ""} ↔ {tr.wantPlayers.map(uid => tt?.squad?.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.wantCash > 0 ? ` + ${tr.wantCash}pt` : ""}</div>
-                          <button onClick={() => dispatch({ type: "CANCEL_TRADE", tradeId: tr.id })} style={{ width: "100%", padding: "6px 0", background: "rgba(107,114,128,.15)", border: "1px solid rgba(107,114,128,.3)", borderRadius: 8, color: "#9ca3af", fontFamily: F, fontWeight: 600, fontSize: 11, cursor: "pointer" }}>🚫 CANCEL</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Trade history */}
-                {(trades || []).filter(t => ["accepted","rejected","cancelled"].includes(t.status)).length > 0 && (
-                  <div style={{ padding: "10px 14px", background: "rgba(255,255,255,.03)", borderRadius: 14, border: "1px solid rgba(255,255,255,.07)" }}>
-                    <div style={{ fontFamily: F, fontSize: 10, color: "#4b5563", letterSpacing: 2, marginBottom: 8 }}>📜 TRADE HISTORY</div>
-                    {(trades || []).filter(t => ["accepted","rejected","cancelled"].includes(t.status)).map(tr => (
-                      <div key={tr.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,.05)", marginBottom: 5 }}>
-                        <span style={{ fontFamily: F, fontSize: 10, color: "#6b7280" }}>{teams[tr.fromIdx]?.team} ↔ {teams[tr.toIdx]?.team} ({tr.offerValue}pt)</span>
-                        <span style={{ fontFamily: F, fontSize: 10, fontWeight: 700, color: tr.status === "accepted" ? "#4ade80" : "#f87171" }}>{tr.status.toUpperCase()}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Propose new trade */}
-                {myIdx !== null && myPending.length < 2 && (
-                  <div style={{ padding: "10px 14px", background: "rgba(255,255,255,.03)", borderRadius: 14, border: "1px solid rgba(255,255,255,.07)" }}>
-                    <div style={{ fontFamily: F, fontSize: 10, color: "#4b5563", letterSpacing: 2, marginBottom: 10 }}>➕ PROPOSE A NEW TRADE</div>
-
-                    {/* Target team picker */}
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontFamily: F, fontSize: 9, color: "#4b5563", letterSpacing: 2, marginBottom: 6 }}>SELECT TEAM TO TRADE WITH</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {teams.map((t, i) => i !== myIdx && (
-                          <button key={i} onClick={() => { setTradeTarget(i); setTradeWantPl([]); setTradeWantCash(0); }} style={{ padding: "6px 14px", borderRadius: 10, background: tradeTarget === i ? "linear-gradient(135deg,#6366f1,#4f46e5)" : "rgba(255,255,255,.05)", border: tradeTarget === i ? "1px solid #6366f1" : "1px solid rgba(255,255,255,.08)", color: tradeTarget === i ? "#fff" : "#9ca3af", fontFamily: F, fontWeight: 600, fontSize: 11, cursor: "pointer" }}>{t.team}</button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {tradeTarget !== null && (() => {
-                      const tt = teams[tradeTarget];
-                      return (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                          {/* What I offer */}
-                          <div>
-                            <div style={{ fontFamily: F, fontSize: 9, color: "#4b5563", letterSpacing: 2, marginBottom: 6 }}>YOUR OFFER (tap players to add)</div>
-                            {(myTeam?.squad || []).map(p => (
-                              <div key={p.uid} onClick={() => setTradeOfferPl(prev => prev.includes(p.uid) ? prev.filter(x=>x!==p.uid) : [...prev, p.uid])} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", marginBottom: 5, borderRadius: 10, background: tradeOfferPl.includes(p.uid) ? "rgba(6,182,212,.12)" : "rgba(255,255,255,.02)", border: "1px solid " + (tradeOfferPl.includes(p.uid) ? "#06b6d4" : "rgba(255,255,255,.06)"), cursor: "pointer" }}>
-                                <div style={{ flex: 1, fontFamily: F, fontSize: 12, color: "#fff" }}>{p.n}</div>
-                                <div style={{ fontFamily: F, fontSize: 11, color: "#06b6d4" }}>{p.price}pt</div>
-                                {tradeOfferPl.includes(p.uid) && <div style={{ fontSize: 14, color: "#06b6d4" }}>✓</div>}
-                              </div>
-                            ))}
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                              <span style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", whiteSpace: "nowrap" }}>+ CASH OFFER:</span>
-                              <input type="number" min="0" max={myTeam?.budget || 0} value={tradeOfferCash} onChange={e => setTradeOfferCash(Math.min(Number(e.target.value)||0, myTeam?.budget||0))} style={{ width: 65, padding: "5px 8px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "#fff", fontFamily: F, fontSize: 12, outline: "none" }} />
-                              <span style={{ fontFamily: F, fontSize: 9, color: "#4b5563" }}>/ {myTeam?.budget}pt</span>
-                            </div>
-                          </div>
-
-                          {/* What I want */}
-                          <div>
-                            <div style={{ fontFamily: F, fontSize: 9, color: "#4b5563", letterSpacing: 2, marginBottom: 6 }}>WHAT YOU WANT FROM {tt?.team}</div>
-                            {(tt?.squad || []).map(p => (
-                              <div key={p.uid} onClick={() => setTradeWantPl(prev => prev.includes(p.uid) ? prev.filter(x=>x!==p.uid) : [...prev, p.uid])} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", marginBottom: 5, borderRadius: 10, background: tradeWantPl.includes(p.uid) ? "rgba(251,191,36,.1)" : "rgba(255,255,255,.02)", border: "1px solid " + (tradeWantPl.includes(p.uid) ? "#fbbf24" : "rgba(255,255,255,.06)"), cursor: "pointer" }}>
-                                <div style={{ flex: 1, fontFamily: F, fontSize: 12, color: "#fff" }}>{p.n}</div>
-                                <div style={{ fontFamily: F, fontSize: 11, color: "#fbbf24" }}>{p.price}pt</div>
-                                {tradeWantPl.includes(p.uid) && <div style={{ fontSize: 14, color: "#fbbf24" }}>✓</div>}
-                              </div>
-                            ))}
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                              <span style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", whiteSpace: "nowrap" }}>+ CASH REQUEST:</span>
-                              <input type="number" min="0" max={tt?.budget || 0} value={tradeWantCash} onChange={e => setTradeWantCash(Math.min(Number(e.target.value)||0, tt?.budget||0))} style={{ width: 65, padding: "5px 8px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 8, color: "#fff", fontFamily: F, fontSize: 12, outline: "none" }} />
-                              <span style={{ fontFamily: F, fontSize: 9, color: "#4b5563" }}>/ {tt?.budget}pt</span>
-                            </div>
-                          </div>
-
-                          {/* Live balance */}
-                          <div style={{ padding: "10px 14px", background: balanced ? "rgba(16,185,129,.08)" : "rgba(255,255,255,.03)", borderRadius: 12, border: "1px solid " + (balanced ? "rgba(16,185,129,.3)" : "rgba(255,255,255,.08)"), textAlign: "center" }}>
-                            <div style={{ fontFamily: F, fontSize: 11, fontWeight: 700, color: balanced ? "#4ade80" : (offerTotal !== wantTotal && offerTotal > 0 ? "#f87171" : "#6b7280") }}>
-                              {balanced ? "✅ BALANCED — READY TO SEND!" : `⚖️ YOU OFFER ${offerTotal}pt — YOU WANT ${wantTotal}pt — MUST MATCH`}
-                            </div>
-                          </div>
-
-                          {balanced && (
-                            <button onClick={() => {
-                              dispatch({ type: "PROPOSE_TRADE", fromIdx: myIdx, toIdx: tradeTarget, offerPlayers: tradeOfferPl, offerCash: tradeOfferCash, wantPlayers: tradeWantPl, wantCash: tradeWantCash });
-                              setTradeOfferPl([]); setTradeOfferCash(0); setTradeWantPl([]); setTradeWantCash(0); setTradeTarget(null);
-                            }} style={{ padding: "13px 0", background: "linear-gradient(135deg,#10b981,#059669)", border: "none", borderRadius: 12, color: "#fff", fontFamily: F, fontWeight: 700, fontSize: 13, letterSpacing: 1, cursor: "pointer", width: "100%" }}>🤝 SEND TRADE PROPOSAL</button>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
         {/* BID TAB */}
-        {tab === "bid" && phase !== "results" && phase !== "trade_window" && (
+        {tab === "bid" && phase !== "results" && (
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px 16px", display: "flex", flexDirection: "column" }}>
             <div style={{ maxWidth: 440, width: "100%", margin: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
               {isR2 && !canBidR2 && (bidderIdx != null || noAuc) && !isAuctioneer && (
@@ -1714,7 +1473,7 @@ export default function App() {
                   boxShadow: watchlist.includes(p.id) ? "0 0 30px rgba(251,191,36,0.6), inset 0 0 40px rgba(251,191,36,0.2)" : "0 20px 60px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.05), inset 0 0 40px rgba(56,189,248,0.03)",
                   padding: 10, position: "relative", overflow: "hidden", animation: "cardIn .4s cubic-bezier(0.34,1.2,0.64,1)"
                 }}>
-                  {watchlist.includes(p.id) && <div style={{ position: "absolute", top: -20, right: -30, background: "#fbbf24", color: "#000", fontFamily: F, fontSize: 10, fontWeight: 900, padding: "20px 40px 5px", transform: "rotate(45deg)", letterSpacing: 2, zIndex: 10, boxShadow: "0 4px 12px rgba(251,191,36,0.4)" }}>⭐ TARGET</div>}
+
                   {/* Subtle top-left glow */}
                   <div style={{ position: "absolute", top: -50, left: -50, width: 150, height: 150, background: "rgba(56, 189, 248, 0.1)", filter: "blur(40px)", borderRadius: "50%" }} />
                   {isReauction && <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", padding: "5px 16px", borderRadius: 99, background: "rgba(59,130,246,.25)", border: "1px solid rgba(59,130,246,.5)", fontFamily: F, fontSize: 10, color: "#93c5fd", letterSpacing: 3, zIndex: 10, backdropFilter: "blur(4px)" }}>🔄 REAUCTION</div>}
