@@ -5921,8 +5921,8 @@ export default function App() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {(isAuctioneer || session.isHost) && phase !== "results" && (
-            <button onClick={() => dispatch({ type: "TOGGLE_PAUSE" })} style={{ background: isPaused ? "#facc15" : "#ef4444", border: `2px solid ${isPaused ? "#ca8a04" : "#b91c1c"}`, color: isPaused ? "#000" : "#fff", padding: "6px 14px", borderRadius: "8px", fontFamily: F, fontSize: 13, cursor: "pointer", fontWeight: 900, letterSpacing: 1, boxShadow: "0 4px 14px rgba(0,0,0,0.5)", transform: "scale(1.05)" }}>
-              {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
+            <button onClick={() => dispatch({ type: "TOGGLE_PAUSE" })} style={{ background: isPaused ? "#facc15" : "#ef4444", border: `2px solid ${isPaused ? "#ca8a04" : "#b91c1c"}`, color: isPaused ? "#000" : "#fff", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)", flexShrink: 0 }}>
+              {isPaused ? "▶" : "⏸"}
             </button>
           )}
           {activeTeam && <div style={{ fontFamily: F, fontSize: 18, color: "#06b6d4", fontWeight: 800 }}>{activeTeam.budget}<span style={{ fontSize: 12, color: "#6b7280", marginLeft: 4, letterSpacing: 1 }}>PTS</span></div>}
