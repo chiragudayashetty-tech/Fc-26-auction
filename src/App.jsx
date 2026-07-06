@@ -4880,13 +4880,73 @@ function mkQueue(cfg) {
   const poolIds = cfg.pool || PLAYERS.map(p => p.id);
   const activePlayers = PLAYERS.filter(p => poolIds.includes(p.id));
   
-  const m1 = sh(activePlayers.filter(p => p.cat === "M1"));
-  const m2 = sh(activePlayers.filter(p => p.cat === "M2"));
-  const fwd = sh(activePlayers.filter(p => p.cat === "FWD"));
-  const mid = sh(activePlayers.filter(p => p.cat === "MID"));
-  const def = sh(activePlayers.filter(p => p.cat === "DEF"));
-  const gk = sh(activePlayers.filter(p => p.cat === "GK"));
+  // === M1 POOL ===
+  const m1DecoysNames = ["Haaland", "Mbappé", "Kane", "Pedri", "Salah", "Kimmich", "Donnarumma", "Valverde", "Yamal", "Oblak", "Bruno Fernandes", "Barella"];
+  const m1TargetsNames = ["Rodri", "Gabriel", "Bellingham", "Vitinha", "Dembélé", "Hakimi", "Courtois", "Vini Jr.", "Olise", "Raphinha", "van Dijk", "Alisson", "Lautaro Martínez"];
   
+  let m1Decoys = activePlayers.filter(p => p.cat === "M1" && m1DecoysNames.includes(p.n));
+  let m1Targets = activePlayers.filter(p => p.cat === "M1" && m1TargetsNames.includes(p.n));
+  
+  // Sneaky mix: Take 2 random decoys and mix them into targets
+  m1Decoys = sh(m1Decoys);
+  const mixedDecoys = m1Decoys.splice(0, 2); 
+  const m1Front = m1Decoys;
+  const m1Back = sh([...m1Targets, ...mixedDecoys]);
+  const m1Rest = sh(activePlayers.filter(p => p.cat === "M1" && !m1DecoysNames.includes(p.n) && !m1TargetsNames.includes(p.n)));
+  
+  const m1 = [...m1Front, ...m1Rest, ...m1Back];
+
+  // === M2 POOL ===
+  const m2DecoysNames = ["Rice", "De Bruyne", "Marquinhos", "Messi", "Lewandowski", "Wirtz", "Saka", "Ødegaard", "Raya", "Maignan", "Sommer", "Çalhanoğlu", "Tah", "de Jong", "Isak", "Bastoni", "R. Dias", "L. Díaz", "Pacho"];
+  const m2TargetsNames = ["Saliba", "Nuno Mendes", "Kvaratskhelia", "Caicedo", "João Neves", "Musiala"];
+  
+  const m2Front = sh(activePlayers.filter(p => p.cat === "M2" && m2DecoysNames.includes(p.n)));
+  const m2Back = sh(activePlayers.filter(p => p.cat === "M2" && m2TargetsNames.includes(p.n)));
+  const m2Rest = sh(activePlayers.filter(p => p.cat === "M2" && !m2DecoysNames.includes(p.n) && !m2TargetsNames.includes(p.n)));
+  
+  const m2 = [...m2Front, ...m2Rest, ...m2Back];
+
+  // === FWD POOL ===
+  const fwdPool = activePlayers.filter(p => p.cat === "FWD");
+  const fwdDoue = fwdPool.filter(p => p.n === "Doué");
+  const fwdMidLate = fwdPool.filter(p => ["Guirassy", "Rodrygo", "Nico Williams"].includes(p.n));
+  const fwdRest = sh(fwdPool.filter(p => p.n !== "Doué" && !["Guirassy", "Rodrygo", "Nico Williams"].includes(p.n)));
+  
+  // Split rest into two halves
+  const fwdHalfIdx = Math.floor(fwdRest.length / 2);
+  const fwdFirstHalf = fwdRest.slice(0, fwdHalfIdx);
+  const fwdSecondHalf = fwdRest.slice(fwdHalfIdx);
+  
+  // Mix Guirassy/Rodrygo/Nico into second half, Doué into the very end
+  const fwdBackMixed = sh([...fwdSecondHalf, ...fwdMidLate]);
+  // Extract the last 5 players from back mixed to insert Doué
+  const finalFwdPart = fwdBackMixed.splice(-5);
+  const fwdFinal = sh([...finalFwdPart, ...fwdDoue]);
+  
+  const fwd = [...fwdFirstHalf, ...fwdBackMixed, ...fwdFinal];
+
+  // === MID POOL ===
+  const midPool = activePlayers.filter(p => p.cat === "MID");
+  const midTargets = midPool.filter(p => ["Zubimendi", "Eze"].includes(p.n));
+  const midRest = sh(midPool.filter(p => !["Zubimendi", "Eze"].includes(p.n)));
+  
+  const midHalfIdx = Math.floor(midRest.length / 1.5); // Push targets to the last third
+  const midFirst = midRest.slice(0, midHalfIdx);
+  const midSecond = midRest.slice(midHalfIdx);
+  const midBack = sh([...midSecond, ...midTargets]);
+  
+  const mid = [...midFirst, ...midBack];
+
+  // === DEF POOL ===
+  const defPool = activePlayers.filter(p => p.cat === "DEF");
+  const defTargets = defPool.filter(p => ["Cucurella", "Koundé"].includes(p.n));
+  const defRest = sh(defPool.filter(p => !["Cucurella", "Koundé"].includes(p.n)));
+  
+  const def = [...defRest, ...sh(defTargets)];
+
+  // === GK POOL ===
+  const gk = sh(activePlayers.filter(p => p.cat === "GK"));
+
   return [...m1, ...m2, ...fwd, ...mid, ...def, ...gk];
 }
 
