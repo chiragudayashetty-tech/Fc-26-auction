@@ -5470,12 +5470,21 @@ export default function App() {
               {(() => {
                  const curLen = cfg.pool ? cfg.pool.length : PLAYERS.length;
                  const isAll = curLen === PLAYERS.length;
+                 const m1m2Ids = PLAYERS.filter(p => p.cat === "M1" || p.cat === "M2").map(p => p.id);
+                 const isOnlyM1M2 = cfg.pool && cfg.pool.length === m1m2Ids.length && m1m2Ids.every(id => cfg.pool.includes(id));
                  return (
-                   <button onClick={() => {
-                     dispatch({ type: "SET_CFG", patch: { pool: isAll ? [] : PLAYERS.map(p=>p.id) } });
-                   }} style={{ background: isAll ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)", color: isAll ? "#ef4444" : "#10b981", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: "bold", letterSpacing: 1 }}>
-                     {isAll ? "DESELECT ALL" : "SELECT ALL"}
-                   </button>
+                   <div style={{ display: 'flex', gap: '10px' }}>
+                     <button onClick={() => {
+                       dispatch({ type: "SET_CFG", patch: { pool: m1m2Ids } });
+                     }} style={{ background: isOnlyM1M2 ? "rgba(16,185,129,0.2)" : "rgba(16,185,129,0.1)", color: "#10b981", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: "bold", letterSpacing: 1 }}>
+                       SELECT ONLY M1 & M2
+                     </button>
+                     <button onClick={() => {
+                       dispatch({ type: "SET_CFG", patch: { pool: isAll ? [] : PLAYERS.map(p=>p.id) } });
+                     }} style={{ background: isAll ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)", color: isAll ? "#ef4444" : "#10b981", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: "bold", letterSpacing: 1 }}>
+                       {isAll ? "DESELECT ALL" : "SELECT ALL"}
+                     </button>
+                   </div>
                  );
               })()}
               <div style={{ fontSize: 16, fontWeight: "bold", color: "#3b82f6" }}>TOTAL: {cfg.pool ? cfg.pool.length : PLAYERS.length}</div>
