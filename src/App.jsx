@@ -1544,9 +1544,9 @@ export default function App() {
           const myTeam = myIdx !== null ? teams[myIdx] : null;
           const myPending  = (trades || []).filter(t => t.fromIdx === myIdx && t.status === "pending");
           const myIncoming = (trades || []).filter(t => t.toIdx   === myIdx && t.status === "pending");
-          const offerTotal = tradeOfferPl.reduce((sum, uid) => { const p = myTeam?.squad.find(x => x.uid === uid); return sum + (p?.price || 0); }, 0) + tradeOfferCash;
+          const offerTotal = tradeOfferPl.reduce((sum, uid) => { const p = myTeam?.squad?.find(x => x.uid === uid); return sum + (p?.price || 0); }, 0) + tradeOfferCash;
           const targetTeam = tradeTarget !== null ? teams[tradeTarget] : null;
-          const wantTotal  = tradeWantPl.reduce((sum, uid)  => { const p = targetTeam?.squad.find(x => x.uid === uid); return sum + (p?.price || 0); }, 0) + tradeWantCash;
+          const wantTotal  = tradeWantPl.reduce((sum, uid)  => { const p = targetTeam?.squad?.find(x => x.uid === uid); return sum + (p?.price || 0); }, 0) + tradeWantCash;
           const balanced   = offerTotal > 0 && offerTotal === wantTotal;
           const mm = String(Math.floor(tradeSecs / 60)).padStart(2, "0");
           const ss = String(tradeSecs % 60).padStart(2, "0");
@@ -1576,8 +1576,8 @@ export default function App() {
                       return (
                         <div key={tr.id} style={{ padding: "10px 12px", background: "rgba(16,185,129,.06)", borderRadius: 12, border: "1px solid rgba(16,185,129,.2)", marginBottom: 8 }}>
                           <div style={{ fontFamily: F, fontSize: 11, color: "#4ade80", fontWeight: 700, marginBottom: 4 }}>FROM: {ft?.team}</div>
-                          <div style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", marginBottom: 2 }}>THEY GIVE: {tr.offerPlayers.map(uid => ft?.squad.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.offerCash > 0 ? ` + ${tr.offerCash}pt cash` : ""} ({tr.offerValue}pt)</div>
-                          <div style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", marginBottom: 8 }}>YOU GIVE: {tr.wantPlayers.map(uid => myTeam?.squad.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.wantCash > 0 ? ` + ${tr.wantCash}pt cash` : ""} ({tr.offerValue}pt)</div>
+                          <div style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", marginBottom: 2 }}>THEY GIVE: {tr.offerPlayers.map(uid => ft?.squad?.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.offerCash > 0 ? ` + ${tr.offerCash}pt cash` : ""} ({tr.offerValue}pt)</div>
+                          <div style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", marginBottom: 8 }}>YOU GIVE: {tr.wantPlayers.map(uid => myTeam?.squad?.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.wantCash > 0 ? ` + ${tr.wantCash}pt cash` : ""} ({tr.offerValue}pt)</div>
                           <div style={{ display: "flex", gap: 8 }}>
                             <button onClick={() => dispatch({ type: "ACCEPT_TRADE", tradeId: tr.id })} style={{ flex: 1, padding: "8px 0", background: "linear-gradient(135deg,#10b981,#059669)", border: "none", borderRadius: 10, color: "#fff", fontFamily: F, fontWeight: 700, fontSize: 12, letterSpacing: 1, cursor: "pointer" }}>✅ ACCEPT</button>
                             <button onClick={() => dispatch({ type: "REJECT_TRADE", tradeId: tr.id })} style={{ flex: 1, padding: "8px 0", background: "rgba(239,68,68,.15)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 10, color: "#f87171", fontFamily: F, fontWeight: 700, fontSize: 12, letterSpacing: 1, cursor: "pointer" }}>❌ REJECT</button>
@@ -1597,7 +1597,7 @@ export default function App() {
                       return (
                         <div key={tr.id} style={{ padding: "10px 12px", background: "rgba(251,191,36,.06)", borderRadius: 12, border: "1px solid rgba(251,191,36,.2)", marginBottom: 8 }}>
                           <div style={{ fontFamily: F, fontSize: 11, color: "#fbbf24", fontWeight: 700, marginBottom: 4 }}>TO: {tt?.team}</div>
-                          <div style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", marginBottom: 6 }}>YOU GIVE: {tr.offerPlayers.map(uid => myTeam?.squad.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.offerCash > 0 ? ` + ${tr.offerCash}pt` : ""} ↔ {tr.wantPlayers.map(uid => tt?.squad.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.wantCash > 0 ? ` + ${tr.wantCash}pt` : ""}</div>
+                          <div style={{ fontFamily: F, fontSize: 10, color: "#9ca3af", marginBottom: 6 }}>YOU GIVE: {tr.offerPlayers.map(uid => myTeam?.squad?.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.offerCash > 0 ? ` + ${tr.offerCash}pt` : ""} ↔ {tr.wantPlayers.map(uid => tt?.squad?.find(p=>p.uid===uid)?.n).filter(Boolean).join(", ")}{tr.wantCash > 0 ? ` + ${tr.wantCash}pt` : ""}</div>
                           <button onClick={() => dispatch({ type: "CANCEL_TRADE", tradeId: tr.id })} style={{ width: "100%", padding: "6px 0", background: "rgba(107,114,128,.15)", border: "1px solid rgba(107,114,128,.3)", borderRadius: 8, color: "#9ca3af", fontFamily: F, fontWeight: 600, fontSize: 11, cursor: "pointer" }}>🚫 CANCEL</button>
                         </div>
                       );
@@ -1710,10 +1710,11 @@ export default function App() {
                 <div key={p.id + (current?.uid || 0)} style={{ 
                   width: "100%", maxWidth: 360, margin: "0 auto 16px", borderRadius: 16, 
                   background: "linear-gradient(145deg, #0f172a 0%, #020617 100%)", 
-                  border: "1px solid rgba(56, 189, 248, 0.15)",
-                  boxShadow: "0 20px 60px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.05), inset 0 0 40px rgba(56,189,248,0.03)",
+                  border: watchlist.includes(p.id) ? "2px solid #fbbf24" : "1px solid rgba(56, 189, 248, 0.15)",
+                  boxShadow: watchlist.includes(p.id) ? "0 0 30px rgba(251,191,36,0.6), inset 0 0 40px rgba(251,191,36,0.2)" : "0 20px 60px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.05), inset 0 0 40px rgba(56,189,248,0.03)",
                   padding: 10, position: "relative", overflow: "hidden", animation: "cardIn .4s cubic-bezier(0.34,1.2,0.64,1)"
                 }}>
+                  {watchlist.includes(p.id) && <div style={{ position: "absolute", top: -20, right: -30, background: "#fbbf24", color: "#000", fontFamily: F, fontSize: 10, fontWeight: 900, padding: "20px 40px 5px", transform: "rotate(45deg)", letterSpacing: 2, zIndex: 10, boxShadow: "0 4px 12px rgba(251,191,36,0.4)" }}>⭐ TARGET</div>}
                   {/* Subtle top-left glow */}
                   <div style={{ position: "absolute", top: -50, left: -50, width: 150, height: 150, background: "rgba(56, 189, 248, 0.1)", filter: "blur(40px)", borderRadius: "50%" }} />
                   {isReauction && <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", padding: "5px 16px", borderRadius: 99, background: "rgba(59,130,246,.25)", border: "1px solid rgba(59,130,246,.5)", fontFamily: F, fontSize: 10, color: "#93c5fd", letterSpacing: 3, zIndex: 10, backdropFilter: "blur(4px)" }}>🔄 REAUCTION</div>}
