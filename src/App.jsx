@@ -679,15 +679,15 @@ export default function App() {
   const [selSquadPl, setSelSquadPl] = useState(null);
   const [rAction, setRAction] = useState(null);
   // Watchlist — local per-browser, persisted to localStorage
-  const [watchlist, setWatchlist] = React.useState(() => { try { return JSON.parse(localStorage.getItem("fc26_wl") || "[]"); } catch { return []; } });
+  const [watchlist, setWatchlist] = useState(() => { try { return JSON.parse(localStorage.getItem("fc26_wl") || "[]"); } catch { return []; } });
   const toggleWatch = (id) => setWatchlist(prev => { const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; try { localStorage.setItem("fc26_wl", JSON.stringify(n)); } catch {} return n; });
   // Trade builder state (local only until PROPOSE is dispatched)
-  const [tradeTarget, setTradeTarget] = React.useState(null);
-  const [tradeOfferPl, setTradeOfferPl] = React.useState([]);
-  const [tradeOfferCash, setTradeOfferCash] = React.useState(0);
-  const [tradeWantPl, setTradeWantPl] = React.useState([]);
-  const [tradeWantCash, setTradeWantCash] = React.useState(0);
-  const [tradeSecs, setTradeSecs] = React.useState(300);
+  const [tradeTarget, setTradeTarget] = useState(null);
+  const [tradeOfferPl, setTradeOfferPl] = useState([]);
+  const [tradeOfferCash, setTradeOfferCash] = useState(0);
+  const [tradeWantPl, setTradeWantPl] = useState([]);
+  const [tradeWantCash, setTradeWantCash] = useState(0);
+  const [tradeSecs, setTradeSecs] = useState(300);
   const [roomName, setRoomName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [myName, setMyName] = useState("");
@@ -733,7 +733,7 @@ export default function App() {
 
 
   // Switch tab automatically on phase change
-  React.useEffect(() => {
+  useEffect(() => {
     if (phase === "trade_window") setTab("trade");
     else if (phase === "results") setTab("dash");
   }, [phase]);
@@ -753,8 +753,8 @@ export default function App() {
   }, [phase, role, teams, session.uid, session.isHost, cfg.needAuctioneer]);
 
   /* ── Watchlist alert: plays chime when a watched player appears ── */
-  const prevBidUid = React.useRef(null);
-  React.useEffect(() => {
+  const prevBidUid = useRef(null);
+  useEffect(() => {
     if (!current || current.status !== "active") return;
     if (current.uid === prevBidUid.current) return;
     prevBidUid.current = current.uid;
@@ -773,7 +773,7 @@ export default function App() {
   }, [current?.uid]);
 
   /* ── Trade window countdown ── */
-  React.useEffect(() => {
+  useEffect(() => {
     if (phase !== "trade_window" || !tradeWindowEnd) return;
     let closed = false;
     const tick = () => {
