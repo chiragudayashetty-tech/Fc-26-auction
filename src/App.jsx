@@ -4933,9 +4933,21 @@ function reducer(s, a) {
     case "SET_SETUP": return { ...s, setup: a.setup };
     case "SET_BANNER": return { ...s, banner: a.banner };
     case "SET_SQ": return { ...s, sqView: a.idx };
-    case "SET_FORM": return { ...s, formations: { ...s.formations, [s.sqView]: a.f }, formSlots: { ...s.formSlots, [s.sqView]: {} } };
-    case "ASSIGN_SLOT": { const t = s.formSlots[s.sqView] || {}; return { ...s, formSlots: { ...s.formSlots, [s.sqView]: { ...t, [a.slot]: a.uid } } }; }
-    case "CLEAR_SLOT": { const t = { ...(s.formSlots[s.sqView] || {}) }; delete t[a.slot]; return { ...s, formSlots: { ...s.formSlots, [s.sqView]: t } }; }
+    case "SET_FORM": {
+      const sqId = a.teamIdx !== undefined ? a.teamIdx : s.sqView;
+      return { ...s, formations: { ...s.formations, [sqId]: a.f }, formSlots: { ...s.formSlots, [sqId]: {} } };
+    }
+    case "ASSIGN_SLOT": {
+      const sqId = a.teamIdx !== undefined ? a.teamIdx : s.sqView;
+      const t = s.formSlots[sqId] || {};
+      return { ...s, formSlots: { ...s.formSlots, [sqId]: { ...t, [a.slot]: a.uid } } };
+    }
+    case "CLEAR_SLOT": {
+      const sqId = a.teamIdx !== undefined ? a.teamIdx : s.sqView;
+      const t = { ...(s.formSlots[sqId] || {}) };
+      delete t[a.slot];
+      return { ...s, formSlots: { ...s.formSlots, [sqId]: t } };
+    }
     case "AUTO_FILL": {
       const sqId = a.teamIdx !== undefined ? a.teamIdx : s.sqView;
       const team = s.teams[sqId];
@@ -6380,14 +6392,14 @@ export default function App() {
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ fontSize: 10, color: "#4b5563", fontFamily: F, letterSpacing: 2, marginBottom: 7, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span>FORMATION</span>
-                      <button onClick={() => dispatch({ type: "AUTO_FILL" })} style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)", border: "none", color: "#fff", padding: "4px 14px", borderRadius: 99, fontFamily: F, fontSize: 10, cursor: "pointer", letterSpacing: 1, fontWeight: "bold" }}>✨ AUTO-FILL</button>
+                      <button onClick={() => dispatch({ type: "AUTO_FILL", teamIdx: bidderIdx !== null ? bidderIdx : sqView })} style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)", border: "none", color: "#fff", padding: "4px 14px", borderRadius: 99, fontFamily: F, fontSize: 10, cursor: "pointer", letterSpacing: 1, fontWeight: "bold" }}>✨ AUTO-FILL</button>
                     </div>
                     <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
                       <div style={{ background: "rgba(6,182,212,.1)", color: "#06b6d4", padding: "6px 12px", borderRadius: 8, fontSize: 11, fontFamily: F, letterSpacing: 1, border: "1px solid rgba(6,182,212,.2)", marginBottom: 10 }}>💡 <b>How to place:</b> Tap a player from your list, then tap a position on the pitch. Tap an occupied position to clear it.</div>
                     </div>
                     <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
                       {Object.keys(FORMATIONS).map(f => (
-                        <button key={f} onClick={() => dispatch({ type: "SET_FORM", f })} style={{ padding: "7px 16px", borderRadius: 99, background: formation === f ? "linear-gradient(135deg,#06b6d4,#0891b2)" : "rgba(255,255,255,.04)", border: `1px solid ${formation === f ? "#06b6d444" : "rgba(255,255,255,.09)"}`, color: formation === f ? "#000" : "#6b7280", fontFamily: F, fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1 }}>{f}</button>
+                        <button key={f} onClick={() => dispatch({ type: "SET_FORM", f, teamIdx: bidderIdx !== null ? bidderIdx : sqView })} style={{ padding: "7px 16px", borderRadius: 99, background: formation === f ? "linear-gradient(135deg,#06b6d4,#0891b2)" : "rgba(255,255,255,.04)", border: `1px solid ${formation === f ? "#06b6d444" : "rgba(255,255,255,.09)"}`, color: formation === f ? "#000" : "#6b7280", fontFamily: F, fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1 }}>{f}</button>
                       ))}
                     </div>
                   </div>
@@ -6401,7 +6413,7 @@ export default function App() {
                           const uid = curSlots[si]; const pl = uid ? sq.find(x => x.uid === uid) : null; const g2 = pl ? cardGrade(pl.r, pl.cat) : null;
                           return (
                             <div key={si} style={{ flex: 1, maxWidth: 72, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                              <div onClick={() => { if (selSquadPl) { dispatch({ type: "ASSIGN_SLOT", slot: si, uid: selSquadPl }); setSelSquadPl(null); } else if (pl) { dispatch({ type: "CLEAR_SLOT", slot: si }); } }} style={{ width: "100%", maxWidth: 60, aspectRatio: "2/3", borderRadius: 14, overflow: "hidden", background: pl ? g2.bg : "rgba(255,255,255,.03)", border: `1px solid ${pl ? g2.a + "44" : "rgba(255,255,255,.1)"}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 4, position: "relative", margin: "0 auto", cursor: "pointer", boxShadow: (selSquadPl && !pl) ? "0 0 12px rgba(255,255,255,.15)" : "none" }}>
+                              <div onClick={() => { if (selSquadPl) { dispatch({ type: "ASSIGN_SLOT", slot: si, uid: selSquadPl, teamIdx: bidderIdx !== null ? bidderIdx : sqView }); setSelSquadPl(null); } else if (pl) { dispatch({ type: "CLEAR_SLOT", slot: si, teamIdx: bidderIdx !== null ? bidderIdx : sqView }); } }} style={{ width: "100%", maxWidth: 60, aspectRatio: "2/3", borderRadius: 14, overflow: "hidden", background: pl ? g2.bg : "rgba(255,255,255,.03)", border: `1px solid ${pl ? g2.a + "44" : "rgba(255,255,255,.1)"}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 4, position: "relative", margin: "0 auto", cursor: "pointer", boxShadow: (selSquadPl && !pl) ? "0 0 12px rgba(255,255,255,.15)" : "none" }}>
                                 {pl ? (<><div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Avatar player={pl} size={52} /></div><div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,.8)", textAlign: "center", padding: "3px 0" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 12, color: g2.a, lineHeight: 1 }}>{pl.r}</div></div></>) : (<div style={{ textAlign: "center" }}><div style={{ fontSize: 10, color: "#2d3748", fontFamily: F }}>{slotPos}</div><div style={{ fontSize: 7, color: "#1f2937", marginTop: 2 }}>drop</div></div>)}
                               </div>
                               <div style={{ fontSize: 7, color: pl ? "#6b7280" : "#2d3748", textAlign: "center", maxWidth: 60, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pl ? pl.s : slotPos}</div>
