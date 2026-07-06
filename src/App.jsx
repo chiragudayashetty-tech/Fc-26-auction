@@ -5921,7 +5921,7 @@ export default function App() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {(isAuctioneer || session.isHost) && phase !== "results" && (
-            <button onClick={() => dispatch({ type: "TOGGLE_PAUSE" })} style={{ background: isPaused ? "rgba(16,185,129,.1)" : "rgba(245,158,11,.1)", border: `1px solid ${isPaused ? "rgba(16,185,129,.3)" : "rgba(245,158,11,.3)"}`, color: isPaused ? "#10b981" : "#f59e0b", padding: "4px 10px", borderRadius: "99px", fontFamily: F, fontSize: 11, cursor: "pointer", fontWeight: "bold", letterSpacing: 1 }}>
+            <button onClick={() => dispatch({ type: "TOGGLE_PAUSE" })} style={{ background: isPaused ? "#facc15" : "#ef4444", border: `2px solid ${isPaused ? "#ca8a04" : "#b91c1c"}`, color: isPaused ? "#000" : "#fff", padding: "6px 14px", borderRadius: "8px", fontFamily: F, fontSize: 13, cursor: "pointer", fontWeight: 900, letterSpacing: 1, boxShadow: "0 4px 14px rgba(0,0,0,0.5)", transform: "scale(1.05)" }}>
               {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
             </button>
           )}
