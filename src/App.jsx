@@ -4866,8 +4866,8 @@ const INIT = {
   skipVotes: [],
   history: [],
   banner: null,
-  formation: "4-3-3",
-  formSlots: {},
+  formations: {}, // per-team: { sqView: "4-3-3" }
+  formSlots: {}, // per-team assignments
   sqView: 0,
   // Reauction state
   unsoldPool: [],     // players unsold after main auction
@@ -4933,9 +4933,40 @@ function reducer(s, a) {
     case "SET_SETUP": return { ...s, setup: a.setup };
     case "SET_BANNER": return { ...s, banner: a.banner };
     case "SET_SQ": return { ...s, sqView: a.idx };
-    case "SET_FORM": return { ...s, formation: a.f, formSlots: { ...s.formSlots, [s.sqView]: {} } };
+    case "SET_FORM": return { ...s, formations: { ...s.formations, [s.sqView]: a.f }, formSlots: { ...s.formSlots, [s.sqView]: {} } };
     case "ASSIGN_SLOT": { const t = s.formSlots[s.sqView] || {}; return { ...s, formSlots: { ...s.formSlots, [s.sqView]: { ...t, [a.slot]: a.uid } } }; }
     case "CLEAR_SLOT": { const t = { ...(s.formSlots[s.sqView] || {}) }; delete t[a.slot]; return { ...s, formSlots: { ...s.formSlots, [s.sqView]: t } }; }
+    case "AUTO_FILL": {
+      const sqId = a.teamIdx !== undefined ? a.teamIdx : s.sqView;
+      const team = s.teams[sqId];
+      if (!team) return s;
+      const currentForm = s.formations[sqId] || "4-3-3";
+      const fDef = FORMATIONS[currentForm] || FORMATIONS["4-3-3"];
+      // Sort squad by rating descending
+      const sq = [...team.squad].sort((x, y) => y.r - x.r);
+      const newSlots = {};
+      const assigned = new Set();
+      
+      // Strict matching first
+      fDef.forEach((slot, si) => {
+        const pMatch = sq.find(p => !assigned.has(p.uid) && p.pos === slot.p);
+        if (pMatch) { newSlots[si] = pMatch.uid; assigned.add(pMatch.uid); }
+      });
+      // Fallback matching for empty slots (e.g. LF can play LW or CF)
+      fDef.forEach((slot, si) => {
+        if (!newSlots[si]) {
+          const fallback = sq.find(p => !assigned.has(p.uid) && (
+            (slot.p.includes("W") && p.pos.includes("W")) || 
+            (slot.p.includes("M") && p.pos.includes("M")) || 
+            (slot.p.includes("B") && p.pos.includes("B")) ||
+            (slot.p.includes("F") && (p.pos === "ST" || p.pos === "CF")) ||
+            (slot.p === "ST" && p.pos === "CF") || (slot.p === "CF" && p.pos === "ST")
+          ));
+          if (fallback) { newSlots[si] = fallback.uid; assigned.add(fallback.uid); }
+        }
+      });
+      return { ...s, formSlots: { ...s.formSlots, [sqId]: newSlots } };
+    }
     case "RESET": return { ...INIT };
     case "EXTEND_SEL_TIMER": return { ...s, selTimerEnd: (s.selTimerEnd || Date.now()) + 30000 };
 
@@ -5131,7 +5162,7 @@ export default function App() {
   const [tab, setTab] = useState("bid");
   const [dashSub, setDashSub] = useState("overview");
   const [dashOpen, setDashOpen] = useState({});
-  const [dragUid, setDragUid] = useState(null);
+  const [selSquadPl, setSelSquadPl] = useState(null);
   const [rAction, setRAction] = useState(null);
   const [roomName, setRoomName] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -5165,7 +5196,7 @@ export default function App() {
   const selIntervalRef = useRef(null);
   const prevStatusRef = useRef(null);
 
-  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formation, formSlots, sqView, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool, startRaVotes, isPaused, pausedRem } = s;
+  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formations, formSlots, sqView, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool, startRaVotes, isPaused, pausedRem } = s;
   const isAuctioneer = role === "auctioneer";
   const bidderIdx = role && role !== "auctioneer" ? role.bidder : null;
   const noAuc = !cfg.needAuctioneer;
@@ -5173,6 +5204,13 @@ export default function App() {
   const activeTeam = teams[noAuc ? activeTi : bidderIdx ?? 0];
 
   const isHost = session.isHost === true;
+
+  // Auto-enforce sqView for bidders so they only see their squad
+  useEffect(() => {
+    if (tab === "squads" && !isAuctioneer && bidderIdx !== null && s.sqView !== bidderIdx) {
+      dispatchLocal({ type: "SET_SQ", idx: bidderIdx });
+    }
+  }, [tab, isAuctioneer, bidderIdx, s.sqView, dispatchLocal]);
 
   // Auto-assign role based on UID if in auction
   useEffect(() => {
@@ -6311,17 +6349,20 @@ export default function App() {
         {/* SQUADS */}
         {tab === "squads" && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ display: "flex", overflowX: "auto", padding: "6px 12px 0", gap: 4, flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,.05)" }}>
-              {teams.map((t, i) => (
-                <button key={i} onClick={() => dispatch({ type: "SET_SQ", idx: i })} style={{ padding: "8px 14px", background: sqView === i ? "rgba(6,182,212,.08)" : "none", border: sqView === i ? "1px solid rgba(6,182,212,.2)" : "1px solid transparent", borderRadius: "10px 10px 0 0", fontFamily: F, fontSize: 11, color: sqView === i ? "#06b6d4" : "#4b5563", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1, flexShrink: 0 }}>
-                  {(bidderIdx === i || (noAuc && activeTi === i)) ? "👤 " : ""}{t.team}
-                  {isR2 && t.squad.length < 25 && <span style={{ color: "#4ade80", marginLeft: 4 }}>✓</span>}
-                </button>
-              ))}
-            </div>
+            {isAuctioneer && (
+              <div style={{ display: "flex", overflowX: "auto", padding: "6px 12px 0", gap: 4, flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,.05)" }}>
+                {teams.map((t, i) => (
+                  <button key={i} onClick={() => dispatch({ type: "SET_SQ", idx: i })} style={{ padding: "8px 14px", background: sqView === i ? "rgba(6,182,212,.08)" : "none", border: sqView === i ? "1px solid rgba(6,182,212,.2)" : "1px solid transparent", borderRadius: "10px 10px 0 0", fontFamily: F, fontSize: 11, color: sqView === i ? "#06b6d4" : "#4b5563", cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1, flexShrink: 0 }}>
+                    {(bidderIdx === i || (noAuc && activeTi === i)) ? "👤 " : ""}{t.team}
+                    {isR2 && t.squad.length < 25 && <span style={{ color: "#4ade80", marginLeft: 4 }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
             {(() => {
               const t = teams[sqView] || teams[0]; if (!t) return null;
               const sq = t.squad; const an = analyzeSquad(sq);
+              const formation = (formations && formations[sqView]) ? formations[sqView] : "4-3-3";
               const fDef = FORMATIONS[formation] || FORMATIONS["4-3-3"];
               const rows = {}; fDef.forEach((slot, si) => { if (!rows[slot.r]) rows[slot.r] = []; rows[slot.r].push({ ...slot, si }); });
               const rowOrder = Object.keys(rows).sort((a, b) => +a - +b);
@@ -6337,7 +6378,13 @@ export default function App() {
                     ))}
                   </div>
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, color: "#4b5563", fontFamily: F, letterSpacing: 2, marginBottom: 7 }}>FORMATION</div>
+                    <div style={{ fontSize: 10, color: "#4b5563", fontFamily: F, letterSpacing: 2, marginBottom: 7, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>FORMATION</span>
+                      <button onClick={() => dispatch({ type: "AUTO_FILL" })} style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)", border: "none", color: "#fff", padding: "4px 14px", borderRadius: 99, fontFamily: F, fontSize: 10, cursor: "pointer", letterSpacing: 1, fontWeight: "bold" }}>✨ AUTO-FILL</button>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+                      <div style={{ background: "rgba(6,182,212,.1)", color: "#06b6d4", padding: "6px 12px", borderRadius: 8, fontSize: 11, fontFamily: F, letterSpacing: 1, border: "1px solid rgba(6,182,212,.2)", marginBottom: 10 }}>💡 <b>How to place:</b> Tap a player from your list, then tap a position on the pitch. Tap an occupied position to clear it.</div>
+                    </div>
                     <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
                       {Object.keys(FORMATIONS).map(f => (
                         <button key={f} onClick={() => dispatch({ type: "SET_FORM", f })} style={{ padding: "7px 16px", borderRadius: 99, background: formation === f ? "linear-gradient(135deg,#06b6d4,#0891b2)" : "rgba(255,255,255,.04)", border: `1px solid ${formation === f ? "#06b6d444" : "rgba(255,255,255,.09)"}`, color: formation === f ? "#000" : "#6b7280", fontFamily: F, fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", letterSpacing: 1 }}>{f}</button>
@@ -6353,8 +6400,8 @@ export default function App() {
                         {rows[row].map(({ p: slotPos, si }) => {
                           const uid = curSlots[si]; const pl = uid ? sq.find(x => x.uid === uid) : null; const g2 = pl ? cardGrade(pl.r, pl.cat) : null;
                           return (
-                            <div key={si} style={{ flex: 1, maxWidth: 72, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const u = e.dataTransfer.getData("uid"); if (u) dispatch({ type: "ASSIGN_SLOT", slot: si, uid: u }); }}>
-                              <div draggable={!!pl} onDragStart={e => { if (pl) { e.dataTransfer.setData("uid", pl.uid); setDragUid(pl.uid); } }} onDragEnd={() => setDragUid(null)} onClick={() => { if (pl) dispatch({ type: "CLEAR_SLOT", slot: si }); }} style={{ width: "100%", maxWidth: 60, aspectRatio: "2/3", borderRadius: 14, overflow: "hidden", background: pl ? g2.bg : "rgba(255,255,255,.03)", border: `1px solid ${pl ? g2.a + "44" : "rgba(255,255,255,.1)"}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 4, position: "relative", margin: "0 auto", cursor: pl ? "grab" : "default", boxShadow: dragUid === pl?.uid ? `0 0 20px ${g2?.a}88` : "none" }}>
+                            <div key={si} style={{ flex: 1, maxWidth: 72, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                              <div onClick={() => { if (selSquadPl) { dispatch({ type: "ASSIGN_SLOT", slot: si, uid: selSquadPl }); setSelSquadPl(null); } else if (pl) { dispatch({ type: "CLEAR_SLOT", slot: si }); } }} style={{ width: "100%", maxWidth: 60, aspectRatio: "2/3", borderRadius: 14, overflow: "hidden", background: pl ? g2.bg : "rgba(255,255,255,.03)", border: `1px solid ${pl ? g2.a + "44" : "rgba(255,255,255,.1)"}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 4, position: "relative", margin: "0 auto", cursor: "pointer", boxShadow: (selSquadPl && !pl) ? "0 0 12px rgba(255,255,255,.15)" : "none" }}>
                                 {pl ? (<><div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><Avatar player={pl} size={52} /></div><div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,.8)", textAlign: "center", padding: "3px 0" }}><div style={{ fontFamily: F, fontWeight: 800, fontSize: 12, color: g2.a, lineHeight: 1 }}>{pl.r}</div></div></>) : (<div style={{ textAlign: "center" }}><div style={{ fontSize: 10, color: "#2d3748", fontFamily: F }}>{slotPos}</div><div style={{ fontSize: 7, color: "#1f2937", marginTop: 2 }}>drop</div></div>)}
                               </div>
                               <div style={{ fontSize: 7, color: pl ? "#6b7280" : "#2d3748", textAlign: "center", maxWidth: 60, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pl ? pl.s : slotPos}</div>
@@ -6375,7 +6422,7 @@ export default function App() {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
                           {pls.map(pl => {
                             const placed = assignedUids.has(pl.uid); const g2 = cardGrade(pl.r, pl.cat); return (
-                              <div key={pl.uid} draggable={!placed} onDragStart={e => { if (!placed) { e.dataTransfer.setData("uid", pl.uid); setDragUid(pl.uid); } }} onDragEnd={() => setDragUid(null)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 12, background: placed ? "rgba(16,185,129,.06)" : "rgba(255,255,255,.02)", border: `1px solid ${placed ? "rgba(16,185,129,.25)" : "rgba(255,255,255,.05)"}`, cursor: placed ? "default" : "grab", opacity: placed ? .7 : 1, boxShadow: dragUid === pl.uid ? `0 0 16px ${g2.a}55` : "none" }}>
+                              <div key={pl.uid} onClick={() => { if (!placed) setSelSquadPl(pl.uid === selSquadPl ? null : pl.uid); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 12, background: placed ? "rgba(16,185,129,.06)" : (selSquadPl === pl.uid ? "rgba(6,182,212,.15)" : "rgba(255,255,255,.02)"), border: `1px solid ${placed ? "rgba(16,185,129,.25)" : (selSquadPl === pl.uid ? "#06b6d4" : "rgba(255,255,255,.05)")}`, cursor: "pointer", opacity: placed ? .7 : 1, boxShadow: selSquadPl === pl.uid ? `0 0 12px rgba(6,182,212,.4)` : "none" }}>
                                 <Avatar player={pl} size={36} />
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <div style={{ fontSize: 12, color: "#fff", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pl.n}</div>
