@@ -4962,19 +4962,7 @@ function reducer(s, a) {
         const pMatch = sq.find(p => !assigned.has(p.uid) && p.pos === slot.p);
         if (pMatch) { newSlots[si] = pMatch.uid; assigned.add(pMatch.uid); }
       });
-      // Fallback matching for empty slots (e.g. LF can play LW or CF)
-      fDef.forEach((slot, si) => {
-        if (!newSlots[si]) {
-          const fallback = sq.find(p => !assigned.has(p.uid) && (
-            (slot.p.includes("W") && p.pos.includes("W")) || 
-            (slot.p.includes("M") && p.pos.includes("M")) || 
-            (slot.p.includes("B") && p.pos.includes("B")) ||
-            (slot.p.includes("F") && (p.pos === "ST" || p.pos === "CF")) ||
-            (slot.p === "ST" && p.pos === "CF") || (slot.p === "CF" && p.pos === "ST")
-          ));
-          if (fallback) { newSlots[si] = fallback.uid; assigned.add(fallback.uid); }
-        }
-      });
+
       return { ...s, formSlots: { ...s.formSlots, [sqId]: newSlots } };
     }
     case "RESET": return { ...INIT };
