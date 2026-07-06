@@ -44,7 +44,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Real Madrid",
     "nat": "France",
-    "cat": "FWD",
+    "cat": "M1",
     "eaId": 10001
   },
   {
@@ -63,7 +63,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Manchester City",
     "nat": "Norway",
-    "cat": "FWD",
+    "cat": "M1",
     "eaId": 10002
   },
   {
@@ -82,7 +82,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Real Madrid",
     "nat": "Belgium",
-    "cat": "GK",
+    "cat": "M1",
     "eaId": 10003
   },
   {
@@ -101,7 +101,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Bayern München",
     "nat": "England",
-    "cat": "FWD",
+    "cat": "M1",
     "eaId": 10004
   },
   {
@@ -120,7 +120,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Paris Saint-Germain",
     "nat": "France",
-    "cat": "FWD",
+    "cat": "M1",
     "eaId": 10005
   },
   {
@@ -139,7 +139,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "FC Barcelona",
     "nat": "Spain",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10006
   },
   {
@@ -158,7 +158,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Paris Saint-Germain",
     "nat": "Portugal",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10007
   },
   {
@@ -177,7 +177,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Liverpool",
     "nat": "Egypt",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10008
   },
   {
@@ -196,7 +196,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Bayern München",
     "nat": "Germany",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10009
   },
   {
@@ -215,7 +215,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Manchester City",
     "nat": "Italy",
-    "cat": "GK",
+    "cat": "M1",
     "eaId": 10010
   },
   {
@@ -234,7 +234,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Manchester City",
     "nat": "Spain",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10011
   },
   {
@@ -253,7 +253,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Arsenal",
     "nat": "Brazil",
-    "cat": "DEF",
+    "cat": "M1",
     "eaId": 10012
   },
   {
@@ -272,7 +272,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "FC Barcelona",
     "nat": "Brazil",
-    "cat": "FWD",
+    "cat": "M1",
     "eaId": 10013
   },
   {
@@ -291,7 +291,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Paris Saint-Germain",
     "nat": "Morocco",
-    "cat": "DEF",
+    "cat": "M1",
     "eaId": 10014
   },
   {
@@ -310,7 +310,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Real Madrid",
     "nat": "Brazil",
-    "cat": "FWD",
+    "cat": "M1",
     "eaId": 10015
   },
   {
@@ -329,7 +329,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Real Madrid",
     "nat": "Uruguay",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10016
   },
   {
@@ -348,7 +348,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Bayern München",
     "nat": "France",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10017
   },
   {
@@ -367,7 +367,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Real Madrid",
     "nat": "England",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10018
   },
   {
@@ -386,7 +386,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "FC Barcelona",
     "nat": "Spain",
-    "cat": "FWD",
+    "cat": "M1",
     "eaId": 10019
   },
   {
@@ -405,7 +405,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Atlético de Madrid",
     "nat": "Slovenia",
-    "cat": "GK",
+    "cat": "M1",
     "eaId": 10020
   },
   {
@@ -424,7 +424,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Liverpool",
     "nat": "Netherlands",
-    "cat": "DEF",
+    "cat": "M1",
     "eaId": 10021
   },
   {
@@ -443,7 +443,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Manchester United",
     "nat": "Portugal",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10022
   },
   {
@@ -462,7 +462,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Liverpool",
     "nat": "Brazil",
-    "cat": "GK",
+    "cat": "M1",
     "eaId": 10023
   },
   {
@@ -481,7 +481,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Inter",
     "nat": "Italy",
-    "cat": "MID",
+    "cat": "M1",
     "eaId": 10024
   },
   {
@@ -500,7 +500,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Inter",
     "nat": "Argentina",
-    "cat": "FWD",
+    "cat": "M1",
     "eaId": 10025
   },
   {
@@ -519,7 +519,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Arsenal",
     "nat": "England",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10026
   },
   {
@@ -538,7 +538,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Arsenal",
     "nat": "France",
-    "cat": "DEF",
+    "cat": "M2",
     "eaId": 10027
   },
   {
@@ -557,7 +557,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Paris Saint-Germain",
     "nat": "Georgia",
-    "cat": "FWD",
+    "cat": "M2",
     "eaId": 10028
   },
   {
@@ -576,7 +576,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Paris Saint-Germain",
     "nat": "Portugal",
-    "cat": "DEF",
+    "cat": "M2",
     "eaId": 10029
   },
   {
@@ -595,7 +595,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Chelsea",
     "nat": "Ecuador",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10030
   },
   {
@@ -614,7 +614,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Paris Saint-Germain",
     "nat": "Ecuador",
-    "cat": "DEF",
+    "cat": "M2",
     "eaId": 10031
   },
   {
@@ -633,7 +633,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Paris Saint-Germain",
     "nat": "Portugal",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10032
   },
   {
@@ -652,7 +652,7 @@ const PLAYERS = [
     "wf": 5,
     "club": "Napoli",
     "nat": "Belgium",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10033
   },
   {
@@ -671,7 +671,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Paris Saint-Germain",
     "nat": "Brazil",
-    "cat": "DEF",
+    "cat": "M2",
     "eaId": 10034
   },
   {
@@ -690,7 +690,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Bayern München",
     "nat": "Germany",
-    "cat": "DEF",
+    "cat": "M2",
     "eaId": 10035
   },
   {
@@ -709,7 +709,7 @@ const PLAYERS = [
     "wf": 2,
     "club": "AC Milan",
     "nat": "France",
-    "cat": "GK",
+    "cat": "M2",
     "eaId": 10036
   },
   {
@@ -728,7 +728,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Arsenal",
     "nat": "Spain",
-    "cat": "GK",
+    "cat": "M2",
     "eaId": 10037
   },
   {
@@ -747,7 +747,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "FC Barcelona",
     "nat": "Netherlands",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10038
   },
   {
@@ -766,7 +766,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Liverpool",
     "nat": "Sweden",
-    "cat": "FWD",
+    "cat": "M2",
     "eaId": 10039
   },
   {
@@ -785,7 +785,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Inter",
     "nat": "Italy",
-    "cat": "DEF",
+    "cat": "M2",
     "eaId": 10040
   },
   {
@@ -804,7 +804,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Manchester City",
     "nat": "Portugal",
-    "cat": "DEF",
+    "cat": "M2",
     "eaId": 10041
   },
   {
@@ -823,7 +823,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Bayern München",
     "nat": "Colombia",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10042
   },
   {
@@ -842,7 +842,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Arsenal",
     "nat": "England",
-    "cat": "FWD",
+    "cat": "M2",
     "eaId": 10043
   },
   {
@@ -861,7 +861,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Liverpool",
     "nat": "Germany",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10044
   },
   {
@@ -880,7 +880,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Bayern München",
     "nat": "Germany",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10045
   },
   {
@@ -899,7 +899,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "Inter Miami",
     "nat": "Argentina",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10046
   },
   {
@@ -918,7 +918,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Inter",
     "nat": "Switzerland",
-    "cat": "GK",
+    "cat": "M2",
     "eaId": 10047
   },
   {
@@ -937,7 +937,7 @@ const PLAYERS = [
     "wf": 4,
     "club": "FC Barcelona",
     "nat": "Poland",
-    "cat": "FWD",
+    "cat": "M2",
     "eaId": 10048
   },
   {
@@ -956,7 +956,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Inter",
     "nat": "Türkiye",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10049
   },
   {
@@ -975,7 +975,7 @@ const PLAYERS = [
     "wf": 3,
     "club": "Arsenal",
     "nat": "Norway",
-    "cat": "MID",
+    "cat": "M2",
     "eaId": 10050
   },
   {
@@ -4881,17 +4881,12 @@ function mkQueue(cfg) {
   const poolIds = cfg.pool || PLAYERS.map(p => p.id);
   const activePlayers = PLAYERS.filter(p => poolIds.includes(p.id));
   
-  // Sort descending by rating
-  activePlayers.sort((a, b) => b.r - a.r);
-  
-  const m1 = sh(activePlayers.slice(0, 25).map(p => ({...p, cat: "M1"})));
-  const m2 = sh(activePlayers.slice(20, 40).map(p => ({...p, cat: "M2"})));
-  const rest = activePlayers.slice(40);
-  
-  const fwd = sh(rest.filter(p => p.cat === "FWD"));
-  const mid = sh(rest.filter(p => p.cat === "MID"));
-  const def = sh(rest.filter(p => p.cat === "DEF"));
-  const gk = sh(rest.filter(p => p.cat === "GK"));
+  const m1 = sh(activePlayers.filter(p => p.cat === "M1"));
+  const m2 = sh(activePlayers.filter(p => p.cat === "M2"));
+  const fwd = sh(activePlayers.filter(p => p.cat === "FWD"));
+  const mid = sh(activePlayers.filter(p => p.cat === "MID"));
+  const def = sh(activePlayers.filter(p => p.cat === "DEF"));
+  const gk = sh(activePlayers.filter(p => p.cat === "GK"));
   
   return [...m1, ...m2, ...fwd, ...mid, ...def, ...gk];
 }
@@ -4919,6 +4914,15 @@ function reducer(s, a) {
       return { ...s, teams: s.teams.map(t => t.uid === a.uid ? { ...t, online: false } : t) };
     }
     case "PATCH": return { ...s, ...a.patch };
+    case "TOGGLE_PAUSE": {
+      if (!s.current) return s;
+      if (s.isPaused) {
+        return { ...s, isPaused: false, current: { ...s.current, timerEnd: Date.now() + (s.pausedRem || 0) * 1000 } };
+      } else {
+        const rem = Math.max(0, Math.ceil((s.current.timerEnd - Date.now()) / 1000));
+        return { ...s, isPaused: true, pausedRem: rem };
+      }
+    }
     case "SET_CFG": return { ...s, cfg: { ...s.cfg, ...a.patch } };
     
     case "TOGGLE_POOL_PLAYER":
@@ -5161,7 +5165,7 @@ export default function App() {
   const selIntervalRef = useRef(null);
   const prevStatusRef = useRef(null);
 
-  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formation, formSlots, sqView, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool, startRaVotes } = s;
+  const { phase, cfg, setup, teams, current, queue, history, skipVotes, banner, formation, formSlots, sqView, room, unsoldPool, ra1Unsold, selVotes, raPhaseLabel, setupPool, startRaVotes, isPaused, pausedRem } = s;
   const isAuctioneer = role === "auctioneer";
   const bidderIdx = role && role !== "auctioneer" ? role.bidder : null;
   const noAuc = !cfg.needAuctioneer;
@@ -5189,13 +5193,17 @@ export default function App() {
     clearInterval(intervalRef.current);
     if (!current || current.status !== "active") { setSecs(0); return; }
     const tick = () => {
+      if (isPaused) {
+        setSecs(pausedRem || 0);
+        return;
+      }
       const rem = Math.max(0, Math.ceil((current.timerEnd - Date.now()) / 1000));
       setSecs(rem);
       if (rem <= 0) { clearInterval(intervalRef.current); dispatch({ type: "SELL" }); }
     };
     tick(); intervalRef.current = setInterval(tick, 250);
     return () => clearInterval(intervalRef.current);
-  }, [current?.uid, current?.timerEnd, current?.status]);
+  }, [current?.uid, current?.timerEnd, current?.status, isPaused, pausedRem, dispatch]);
 
   /* ── Selection phase countdown ── */
   useEffect(() => {
