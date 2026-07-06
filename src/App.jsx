@@ -5291,6 +5291,7 @@ export default function App() {
       <div style={{ position: "fixed", inset: 0, opacity: .02, backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2500/svg'%3E%3Cpath d='M60 0H0v60' fill='none' stroke='%23fff' stroke-width='.3'/%3E%3C/svg%3E")`, pointerEvents: "none" }} />
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "40px 20px", gap: 0 }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div style={{ fontFamily: F, fontSize: 13, color: "#9ca3af", letterSpacing: 4, marginBottom: 20, fontStyle: "italic" }}>Made by Loki</div>
           <div style={{ fontFamily: F, fontSize: 11, letterSpacing: 10, color: "#3b82f6", marginBottom: 8 }}>EA SPORTS™ FC 26</div>
           <div style={{ fontFamily: F, fontWeight: 800, fontSize: "clamp(72px,22vw,130px)", lineHeight: .82, letterSpacing: -6, marginBottom: 16 }}>
             <span style={{ color: "#fff" }}>AUC</span><span style={{ color: "#06b6d4" }}>TION</span>
@@ -5910,7 +5911,7 @@ export default function App() {
       <style>{FONTS + ANIM + `.bb:hover{filter:brightness(1.15);transform:translateY(-2px)}.bb:active{transform:scale(.96)}.ti:focus{outline:none;border-color:#3b82f6!important;box-shadow:0 0 0 3px rgba(59,130,246,.1)}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:99px}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}`}</style>
 
       {/* TOP BAR */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0, gap: 8, flexWrap: "wrap", background: "rgba(5,7,14,.97)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", borderBottom: "1px solid rgba(255,255,255,.06)", flexShrink: 0, gap: 8, flexWrap: "nowrap", overflowX: "auto", background: "rgba(5,7,14,.97)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ fontFamily: F, fontWeight: 800, fontSize: 18, letterSpacing: 1 }}><span style={{ color: "#fff" }}>FC</span><span style={{ color: "#06b6d4" }}>26</span></div>
           {phase === "results" && <div style={{ padding: "3px 10px", borderRadius: 99, background: "rgba(6,182,212,.12)", border: "1px solid rgba(6,182,212,.3)", fontFamily: F, fontSize: 10, color: "#06b6d4", letterSpacing: 2 }}>🏆 DRAFT COMPLETE</div>}
