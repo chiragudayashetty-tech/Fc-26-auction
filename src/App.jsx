@@ -5920,7 +5920,7 @@ export default function App() {
           {isR2 && activeTeam && <div style={{ padding: "3px 10px", borderRadius: 99, background: canBidR2 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)", border: `1px solid ${canBidR2 ? "rgba(34,197,94,.3)" : "rgba(239,68,68,.3)"}`, fontFamily: F, fontSize: 10, color: canBidR2 ? "#4ade80" : "#f87171", letterSpacing: 1 }}>{canBidR2 ? "✓ ELIGIBLE" : "✗ NOT ELIGIBLE"}</div>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {isAuctioneer && phase !== "results" && (
+          {(isAuctioneer || session.isHost) && phase !== "results" && (
             <button onClick={() => dispatch({ type: "TOGGLE_PAUSE" })} style={{ background: isPaused ? "rgba(16,185,129,.1)" : "rgba(245,158,11,.1)", border: `1px solid ${isPaused ? "rgba(16,185,129,.3)" : "rgba(245,158,11,.3)"}`, color: isPaused ? "#10b981" : "#f59e0b", padding: "4px 10px", borderRadius: "99px", fontFamily: F, fontSize: 11, cursor: "pointer", fontWeight: "bold", letterSpacing: 1 }}>
               {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
             </button>
