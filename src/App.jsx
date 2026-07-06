@@ -309,15 +309,15 @@ function mkQueue(cfg) {
   const m1DecoysNames = ["Haaland", "Mbappé", "Kane", "Pedri", "Salah", "Kimmich", "Donnarumma", "Valverde", "Yamal", "Oblak", "Bruno Fernandes", "Barella"];
   const m1TargetsNames = ["Rodri", "Gabriel", "Bellingham", "Vitinha", "Dembélé", "Hakimi", "Courtois", "Vini Jr.", "Olise", "Raphinha", "van Dijk", "Alisson", "Lautaro Martínez"];
   
-  let m1Decoys = activePlayers.filter(p => p.cat === "M1" && m1DecoysNames.includes(p.n));
-  let m1Targets = activePlayers.filter(p => p.cat === "M1" && m1TargetsNames.includes(p.n));
+  let m1Decoys = activePlayers.filter(p => p.cat === "M1" && m1DecoysNames.some(name => p.n.includes(name)));
+  let m1Targets = activePlayers.filter(p => p.cat === "M1" && m1TargetsNames.some(name => p.n.includes(name)));
   
   // Sneaky mix: Take 2 random decoys and mix them into targets
   m1Decoys = sh(m1Decoys);
   const mixedDecoys = m1Decoys.splice(0, 2); 
   const m1Front = m1Decoys;
   const m1Back = sh([...m1Targets, ...mixedDecoys]);
-  const m1Rest = sh(activePlayers.filter(p => p.cat === "M1" && !m1DecoysNames.includes(p.n) && !m1TargetsNames.includes(p.n)));
+  const m1Rest = sh(activePlayers.filter(p => p.cat === "M1" && !m1DecoysNames.some(name => p.n.includes(name)) && !m1TargetsNames.some(name => p.n.includes(name))));
   
   const m1 = [...m1Front, ...m1Rest, ...m1Back];
 
@@ -325,17 +325,17 @@ function mkQueue(cfg) {
   const m2DecoysNames = ["Rice", "De Bruyne", "Marquinhos", "Messi", "Lewandowski", "Wirtz", "Saka", "Ødegaard", "Raya", "Maignan", "Sommer", "Çalhanoğlu", "Tah", "de Jong", "Isak", "Bastoni", "R. Dias", "L. Díaz", "Pacho"];
   const m2TargetsNames = ["Saliba", "Nuno Mendes", "Kvaratskhelia", "Caicedo", "João Neves", "Musiala"];
   
-  const m2Front = sh(activePlayers.filter(p => p.cat === "M2" && m2DecoysNames.includes(p.n)));
-  const m2Back = sh(activePlayers.filter(p => p.cat === "M2" && m2TargetsNames.includes(p.n)));
-  const m2Rest = sh(activePlayers.filter(p => p.cat === "M2" && !m2DecoysNames.includes(p.n) && !m2TargetsNames.includes(p.n)));
+  const m2Front = sh(activePlayers.filter(p => p.cat === "M2" && m2DecoysNames.some(name => p.n.includes(name))));
+  const m2Back = sh(activePlayers.filter(p => p.cat === "M2" && m2TargetsNames.some(name => p.n.includes(name))));
+  const m2Rest = sh(activePlayers.filter(p => p.cat === "M2" && !m2DecoysNames.some(name => p.n.includes(name)) && !m2TargetsNames.some(name => p.n.includes(name))));
   
   const m2 = [...m2Front, ...m2Rest, ...m2Back];
 
   // === FWD POOL ===
   const fwdPool = activePlayers.filter(p => p.cat === "FWD");
-  const fwdDoue = fwdPool.filter(p => p.n === "Doué");
-  const fwdMidLate = fwdPool.filter(p => ["Guirassy", "Rodrygo", "Nico Williams"].includes(p.n));
-  const fwdRest = sh(fwdPool.filter(p => p.n !== "Doué" && !["Guirassy", "Rodrygo", "Nico Williams"].includes(p.n)));
+  const fwdDoue = fwdPool.filter(p => p.n.includes("Doué"));
+  const fwdMidLate = fwdPool.filter(p => ["Guirassy", "Rodrygo", "Williams"].some(name => p.n.includes(name)));
+  const fwdRest = sh(fwdPool.filter(p => !p.n.includes("Doué") && !["Guirassy", "Rodrygo", "Williams"].some(name => p.n.includes(name))));
   
   // Split rest into two halves
   const fwdHalfIdx = Math.floor(fwdRest.length / 2);
@@ -352,8 +352,8 @@ function mkQueue(cfg) {
 
   // === MID POOL ===
   const midPool = activePlayers.filter(p => p.cat === "MID");
-  const midTargets = midPool.filter(p => ["Zubimendi", "Eze"].includes(p.n));
-  const midRest = sh(midPool.filter(p => !["Zubimendi", "Eze"].includes(p.n)));
+  const midTargets = midPool.filter(p => ["Zubimendi", "Eze"].some(name => p.n.includes(name)));
+  const midRest = sh(midPool.filter(p => !["Zubimendi", "Eze"].some(name => p.n.includes(name))));
   
   const midHalfIdx = Math.floor(midRest.length / 1.5); // Push targets to the last third
   const midFirst = midRest.slice(0, midHalfIdx);
@@ -364,8 +364,8 @@ function mkQueue(cfg) {
 
   // === DEF POOL ===
   const defPool = activePlayers.filter(p => p.cat === "DEF");
-  const defTargets = defPool.filter(p => ["Cucurella", "Koundé"].includes(p.n));
-  const defRest = sh(defPool.filter(p => !["Cucurella", "Koundé"].includes(p.n)));
+  const defTargets = defPool.filter(p => ["Cucurella", "Koundé"].some(name => p.n.includes(name)));
+  const defRest = sh(defPool.filter(p => !["Cucurella", "Koundé"].some(name => p.n.includes(name))));
   
   const def = [...defRest, ...sh(defTargets)];
 
