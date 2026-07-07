@@ -1397,6 +1397,11 @@ export default function App() {
         </div>
         {cfg.needAuctioneer && <button onClick={() => { setRole("auctioneer"); setTab("bid"); }} style={{ background: "rgba(6,182,212,.06)", border: "2px solid rgba(6,182,212,.35)", borderRadius: 20, padding: "18px 20px", cursor: "pointer", textAlign: "left", width: "100%", display: "block" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {session?.isHost && phase !== "results" && (
+            <button onClick={() => dispatch({ type: "TOGGLE_PAUSE" })} style={{ background: isPaused ? "#facc15" : "#ef4444", border: `2px solid ${isPaused ? "#ca8a04" : "#b91c1c"}`, color: isPaused ? "#000" : "#fff", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)", flexShrink: 0 }}>
+              {isPaused ? "▶" : "⏸"}
+            </button>
+          )}
             <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#06b6d4,#0891b2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>🎙️</div>
             <div><div style={{ fontFamily: F, fontWeight: 800, fontSize: 20, color: "#06b6d4", letterSpacing: 1 }}>AUCTIONEER</div><div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2, lineHeight: 1.6 }}>Controls auction. <b style={{ color: "#fff" }}>Does not bid.</b> Timer auto-sells.</div></div>
           </div>
@@ -1435,6 +1440,11 @@ export default function App() {
           {isR2 && activeTeam && <div style={{ padding: "3px 10px", borderRadius: 99, background: canBidR2 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)", border: `1px solid ${canBidR2 ? "rgba(34,197,94,.3)" : "rgba(239,68,68,.3)"}`, fontFamily: F, fontSize: 10, color: canBidR2 ? "#4ade80" : "#f87171", letterSpacing: 1 }}>{canBidR2 ? "✓ ELIGIBLE" : "✗ NOT ELIGIBLE"}</div>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {session?.isHost && phase !== "results" && (
+            <button onClick={() => dispatch({ type: "TOGGLE_PAUSE" })} style={{ background: isPaused ? "#facc15" : "#ef4444", border: `2px solid ${isPaused ? "#ca8a04" : "#b91c1c"}`, color: isPaused ? "#000" : "#fff", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)", flexShrink: 0 }}>
+              {isPaused ? "▶" : "⏸"}
+            </button>
+          )}
           
           {activeTeam && <div style={{ fontFamily: F, fontSize: 18, color: "#06b6d4", fontWeight: 800 }}>{activeTeam.budget}<span style={{ fontSize: 12, color: "#6b7280", marginLeft: 4, letterSpacing: 1 }}>PTS</span></div>}
           {phase !== "results" && <div style={{ fontSize: 13, color: "#9ca3af", fontFamily: F, fontWeight: 700, letterSpacing: 2 }}>{queue.length + 1} LEFT</div>}
