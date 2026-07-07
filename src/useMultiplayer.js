@@ -35,7 +35,7 @@ export function useMultiplayer(reducer, initialState) {
     const peerStatusRef = useRef(peerStatus);
     const setPeerStatusSync = (status) => {
         peerStatusRef.current = status;
-        setPeerStatusSync(status);
+        setPeerStatus(status);
     };
     
     // Guard to prevent overwriting DB with empty lobby on refresh
