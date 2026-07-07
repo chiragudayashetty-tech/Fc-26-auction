@@ -445,7 +445,7 @@ function reducer(s, a) {
       if (!team || amount > team.budget) return s;
       if (amount <= (cur.bid || 0) && cur.bidderIdx !== null) return s;
       if (team.squad.length >= 25) return s;
-      return { ...s, skipVotes: [], current: { ...cur, bid: amount, bidderIdx: teamIdx, timerEnd: Date.now() + s.cfg.timer * 1000 } };
+      return { ...s, skipVotes: [], isPaused: false, pausedRem: null, current: { ...cur, bid: amount, bidderIdx: teamIdx, timerEnd: Date.now() + s.cfg.timer * 1000 } };
     }
 
     case "SELL": {
@@ -528,7 +528,7 @@ function reducer(s, a) {
       const showBanner = prevCat && next.cat !== prevCat;
       if (showBanner) return { ...s, queue: rest, banner: next.cat, current: null, _nextPlayer: next };
       return {
-        ...s, queue: rest, banner: null,
+        ...s, queue: rest, banner: null, isPaused: false, pausedRem: null,
         current: { uid: Date.now(), player: next, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
       };
     }
@@ -540,7 +540,7 @@ function reducer(s, a) {
       const next = s._nextPlayer;
       if (!next) return { ...s, banner: null };
       return {
-        ...s, banner: null, _nextPlayer: undefined,
+        ...s, banner: null, _nextPlayer: undefined, isPaused: false, pausedRem: null,
         current: { uid: Date.now(), player: next, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" }
       };
     }
@@ -566,7 +566,7 @@ function reducer(s, a) {
          const [first, ...rest] = reaucQueue;
          const eliminated = s.teams.map((t, i) => (t.budget <= 0 || t.squad.length >= 25) ? i : -1).filter(i => i !== -1);
          return {
-           ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {}, startRaVotes: [],
+        ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {}, startRaVotes: [], isPaused: false, pausedRem: null,
            raPhaseLabel: "REAUCTION — ROUND 1",
            current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" },
            skipVotes: eliminated
@@ -582,7 +582,7 @@ function reducer(s, a) {
       const [first, ...rest] = reaucQueue;
       const eliminated = s.teams.map((t, i) => (t.budget <= 0 || t.squad.length >= 25) ? i : -1).filter(i => i !== -1);
       return {
-        ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {}, startRaVotes: [],
+        ...s, phase: "ra1_auction", ra1Unsold, queue: rest, selVotes: {}, startRaVotes: [], isPaused: false, pausedRem: null,
         raPhaseLabel: "REAUCTION — ROUND 1",
         current: { uid: Date.now(), player: first, bid: 0, bidderIdx: null, timerEnd: Date.now() + s.cfg.timer * 1000, status: "active" },
         skipVotes: eliminated
@@ -600,7 +600,7 @@ function reducer(s, a) {
       if (amount <= (cur.bid || 0) && cur.bidderIdx !== null) return s;
       if (team.squad.length >= 25) return s;
       if (team.squad.length >= 25) return s; // round 2 restriction
-      return { ...s, skipVotes: [], current: { ...cur, bid: amount, bidderIdx: teamIdx, timerEnd: Date.now() + s.cfg.timer * 1000 } };
+      return { ...s, skipVotes: [], isPaused: false, pausedRem: null, current: { ...cur, bid: amount, bidderIdx: teamIdx, timerEnd: Date.now() + s.cfg.timer * 1000 } };
     }
 
     default: return s;
