@@ -370,15 +370,6 @@ function reducer(s, a) {
       return { ...s, teams: s.teams.map(t => t.uid === a.uid ? { ...t, online: false } : t) };
     }
     case "PATCH": return { ...s, ...a.patch };
-    case "TOGGLE_PAUSE": {
-      if (!s.current) return s;
-      if (s.isPaused) {
-        return { ...s, isPaused: false, current: { ...s.current, timerEnd: Date.now() + (s.pausedRem || 0) * 1000 } };
-      } else {
-        const rem = Math.max(0, Math.ceil((s.current.timerEnd - Date.now()) / 1000));
-        return { ...s, isPaused: true, pausedRem: rem };
-      }
-    }
     case "SET_CFG": return { ...s, cfg: { ...s.cfg, ...a.patch } };
     
     case "TOGGLE_POOL_PLAYER":
@@ -706,10 +697,7 @@ export default function App() {
     clearInterval(intervalRef.current);
     if (!current || current.status !== "active") { setSecs(0); return; }
     const tick = () => {
-      if (isPaused) {
-        setSecs(pausedRem || 0);
-        return;
-      }
+      
       const rem = Math.max(0, Math.ceil((current.timerEnd - Date.now()) / 1000));
       setSecs(rem);
       if (rem <= 0) { clearInterval(intervalRef.current); dispatch({ type: "SELL" }); }
@@ -1434,11 +1422,7 @@ export default function App() {
           {isR2 && activeTeam && <div style={{ padding: "3px 10px", borderRadius: 99, background: canBidR2 ? "rgba(34,197,94,.1)" : "rgba(239,68,68,.1)", border: `1px solid ${canBidR2 ? "rgba(34,197,94,.3)" : "rgba(239,68,68,.3)"}`, fontFamily: F, fontSize: 10, color: canBidR2 ? "#4ade80" : "#f87171", letterSpacing: 1 }}>{canBidR2 ? "✓ ELIGIBLE" : "✗ NOT ELIGIBLE"}</div>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {(isAuctioneer || session.isHost) && phase !== "results" && (
-            <button onClick={() => dispatch({ type: "TOGGLE_PAUSE" })} style={{ background: isPaused ? "#facc15" : "#ef4444", border: `2px solid ${isPaused ? "#ca8a04" : "#b91c1c"}`, color: isPaused ? "#000" : "#fff", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)", flexShrink: 0 }}>
-              {isPaused ? "▶" : "⏸"}
-            </button>
-          )}
+          
           {activeTeam && <div style={{ fontFamily: F, fontSize: 18, color: "#06b6d4", fontWeight: 800 }}>{activeTeam.budget}<span style={{ fontSize: 12, color: "#6b7280", marginLeft: 4, letterSpacing: 1 }}>PTS</span></div>}
           {phase !== "results" && <div style={{ fontSize: 13, color: "#9ca3af", fontFamily: F, fontWeight: 700, letterSpacing: 2 }}>{queue.length + 1} LEFT</div>}
         </div>
