@@ -370,6 +370,15 @@ function reducer(s, a) {
       return { ...s, teams: s.teams.map(t => t.uid === a.uid ? { ...t, online: false } : t) };
     }
     case "PATCH": return { ...s, ...a.patch };
+    case "TOGGLE_PAUSE": {
+      if (!s.current) return s;
+      if (s.isPaused) {
+        return { ...s, isPaused: false, current: { ...s.current, timerEnd: Date.now() + (s.pausedRem || 0) * 1000 } };
+      } else {
+        const rem = Math.max(0, Math.ceil((s.current.timerEnd - Date.now()) / 1000));
+        return { ...s, isPaused: true, pausedRem: rem };
+      }
+    }
     case "SET_CFG": return { ...s, cfg: { ...s.cfg, ...a.patch } };
     
     case "TOGGLE_POOL_PLAYER":
@@ -698,6 +707,10 @@ export default function App() {
     if (!current || current.status !== "active") { setSecs(0); return; }
     const tick = () => {
       
+      if (isPaused) {
+        setSecs(pausedRem || 0);
+        return;
+      }
       const rem = Math.max(0, Math.ceil((current.timerEnd - Date.now()) / 1000));
       setSecs(rem);
       if (rem <= 0) { clearInterval(intervalRef.current); dispatch({ type: "SELL" }); }
