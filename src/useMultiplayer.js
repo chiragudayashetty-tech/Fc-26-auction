@@ -33,7 +33,10 @@ export function useMultiplayer(reducer, initialState) {
     const roomIdRef = useRef(session.roomId);
     
     const peerStatusRef = useRef(peerStatus);
-    useEffect(() => { peerStatusRef.current = peerStatus; }, [peerStatus]);
+    const setPeerStatusSync = (status) => {
+        peerStatusRef.current = status;
+        setPeerStatusSync(status);
+    };
     
     // Guard to prevent overwriting DB with empty lobby on refresh
     const dbStateFetched = useRef(false);
@@ -105,7 +108,7 @@ export function useMultiplayer(reducer, initialState) {
                             const freshHosts = Object.values(freshState).flat().filter(p => p.isHost);
                             if (freshHosts.length === 0) {
                                 dbStateFetched.current = true; // prevent DB wipe
-                                setPeerStatus("host");
+                                setPeerStatusSync("host");
                                 saveLocalSession({ isHost: true });
                                 await channel.track({ uid: session.uid, isHost: true, isOriginalHost: false });
                             }
@@ -118,7 +121,7 @@ export function useMultiplayer(reducer, initialState) {
                     const originalHosts = activeHosts.filter(p => p.isOriginalHost);
                     if (originalHosts.length > 0) {
                         console.log("Original host returned. Stepping down to client...");
-                        setPeerStatus("client");
+                        setPeerStatusSync("client");
                         saveLocalSession({ isHost: false });
                         channel.track({ uid: session.uid, isHost: false, isOriginalHost: false });
                     }
@@ -138,7 +141,7 @@ export function useMultiplayer(reducer, initialState) {
     };
 
     const initHost = async (roomId) => {
-        setPeerStatus("connecting");
+        setPeerStatusSync("connecting");
         roomIdRef.current = roomId;
         saveLocalSession({ roomId, isHost: true, isOriginalAdmin: true });
         session.isOriginalAdmin = true;
@@ -161,18 +164,18 @@ export function useMultiplayer(reducer, initialState) {
         channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
                 setTimeout(async () => {
-                    setPeerStatus("host");
+                    setPeerStatusSync("host");
                     await channel.track({ uid: session.uid, isHost: true, isOriginalHost: true });
                 }, 100);
             } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                 alert("Multiplayer connection error. Check Supabase config.");
-                setPeerStatus("disconnected");
+                setPeerStatusSync("disconnected");
             }
         });
     };
 
     const joinRoom = async (roomId, name, teamName) => {
-        setPeerStatus("connecting");
+        setPeerStatusSync("connecting");
         roomIdRef.current = roomId;
         saveLocalSession({ roomId, isHost: false, name, team: teamName });
 
@@ -191,7 +194,7 @@ export function useMultiplayer(reducer, initialState) {
 
         channel.subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                setPeerStatus("client");
+                setPeerStatusSync("client");
                 await channel.track({ uid: session.uid, isHost: false, isOriginalHost: false });
                 channel.send({
                     type: 'broadcast',
@@ -200,7 +203,7 @@ export function useMultiplayer(reducer, initialState) {
                 });
             } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
                 alert("Failed to connect to room. Check connection.");
-                setPeerStatus("disconnected");
+                setPeerStatusSync("disconnected");
             }
         });
     };
